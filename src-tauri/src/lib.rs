@@ -15,6 +15,15 @@ use bot_manager::{
 
 mod autoclick_engine;
 mod autoclick_db;
+mod windows_customizer;
+use windows_customizer::{
+    windows_get_os_info,
+    windows_safe_restart_explorer,
+    windows_rebuild_icon_cache,
+    windows_set_desktop_wallpaper,
+    windows_restore_default_wallpaper,
+    windows_get_power_status,
+};
 use autoclick_engine::{AutoClickEngine, AutoClickEngineConfig, EngineStatus};
 use autoclick_db::{AutoClickDatabase, AutoClickRunRecord};
 use std::sync::OnceLock;
@@ -503,6 +512,12 @@ pub fn run() {
             get_app_version,
             open_external_url,
             download_and_run_installer,
+            windows_get_os_info,
+            windows_safe_restart_explorer,
+            windows_rebuild_icon_cache,
+            windows_set_desktop_wallpaper,
+            windows_restore_default_wallpaper,
+            windows_get_power_status,
         ])
 
         .setup(|app| {

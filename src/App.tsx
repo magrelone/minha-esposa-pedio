@@ -10,6 +10,7 @@ import { ShortcutsHubView } from "./core/views/ShortcutsHubView";
 import { CrosshairApp } from "./projects/crosshair/CrosshairApp";
 import { BotsApp } from "./projects/bots/BotsApp";
 import { AutoClickApp } from "./projects/autoclick/AutoClickApp";
+import { WindowsApp } from "./projects/windows/WindowsApp";
 import { OverlayApp } from "./overlay/OverlayApp";
 import { useCrosshairStore } from "./projects/crosshair/store/crosshairStore";
 import { invoke } from "@tauri-apps/api/core";
@@ -160,6 +161,13 @@ export const App: React.FC = () => {
       return (
         <Suspense fallback={<div className="p-8 text-center text-sm text-theme-text-muted">Carregando Auto Click... 🖱️</div>}>
           <AutoClickApp />
+        </Suspense>
+      );
+    }
+    if (currentRoute === "/windows" || currentRoute.startsWith("/windows/")) {
+      return (
+        <Suspense fallback={<div className="p-8 text-center text-sm text-theme-text-muted">Carregando Windows Customization Studio... 🪟</div>}>
+          <WindowsApp />
         </Suspense>
       );
     }
