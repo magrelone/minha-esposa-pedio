@@ -162,7 +162,13 @@ $releaseSetupPath = Join-Path $releaseOutputDir $setupFileName
 Copy-Item -Path $setupExe.FullName -Destination $releaseSetupPath -Force
 
 $releaseTitle = "v$ver 💕 Amor, saiu updatezinho!"
-gh release create "v$ver" $releaseSetupPath $latestJsonPath --title $releaseTitle --notes "$Notes" --clobber
+$existingRelease = gh release view "v$ver" 2>$null
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "  [+] Release v$ver já existe no GitHub. Atualizando arquivos com --clobber..." -ForegroundColor Cyan
+    gh release upload "v$ver" $releaseSetupPath $latestJsonPath --clobber
+} else {
+    gh release create "v$ver" $releaseSetupPath $latestJsonPath --title $releaseTitle --notes "$Notes"
+}
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "  [ERRO] Falha ao publicar release no GitHub CLI." -ForegroundColor Red
