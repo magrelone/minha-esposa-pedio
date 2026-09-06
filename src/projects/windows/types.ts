@@ -85,7 +85,7 @@ export interface AppearanceConfig {
 }
 
 export interface StartMenuConfig {
-  layout: "windows11" | "windows10" | "windows7" | "classic" | "minimal" | "custom_launcher";
+  layout: "windows11" | "windows10" | "windows7" | "classic" | "minimal" | "custom_launcher" | "hybrid_win7_11";
   alignment: "center" | "left";
   showRecentFiles: boolean;
   showRecommended: boolean;
