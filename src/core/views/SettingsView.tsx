@@ -360,39 +360,32 @@ export const SettingsView: React.FC = () => {
       </Card>
 
 
-      {/* 4. Atalhos Globais (Hotkeys) */}
-      <Card className="flex flex-col gap-4">
-        <div className="flex items-center gap-2 border-b border-theme-border/60 pb-3">
-          <Keyboard size={18} className="text-emerald-500" />
-          <h3 className="text-base font-bold text-theme-text">Atalhos Globais do Teclado</h3>
+      {/* 4. Central de Atalhos Rápida */}
+      <Card className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-gradient-to-r from-theme-primary/10 via-theme-surface to-purple-500/10 border-theme-primary/30">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-theme-primary/20 text-theme-primary flex items-center justify-center">
+            <Keyboard size={20} />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-theme-text flex items-center gap-2">
+              Central Unificada de Atalhos
+            </h3>
+            <p className="text-xs text-theme-text-muted">
+              Todos os atalhos globais, miras, menus e bots agora ficam organizados em uma aba exclusiva.
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="flex items-center justify-between p-3 rounded-xl bg-theme-surface-card border border-theme-border/60">
-            <span className="font-medium text-theme-text">Mostrar / Ocultar Overlay</span>
-            <kbd className="px-2 py-1 bg-theme-surface border border-theme-border rounded font-mono text-[11px] text-theme-primary font-bold">
-              Ctrl + Alt + X
-            </kbd>
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-xl bg-theme-surface-card border border-theme-border/60">
-            <span className="font-medium text-theme-text">Abrir / Ocultar Central</span>
-            <kbd className="px-2 py-1 bg-theme-surface border border-theme-border rounded font-mono text-[11px] text-theme-primary font-bold">
-              Ctrl + Alt + C
-            </kbd>
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-xl bg-theme-surface-card border border-theme-border/60">
-            <span className="font-medium text-theme-text">Salvar Alterações</span>
-            <kbd className="px-2 py-1 bg-theme-surface border border-theme-border rounded font-mono text-[11px] text-theme-primary font-bold">
-              Ctrl + S
-            </kbd>
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-xl bg-theme-surface-card border border-theme-border/60">
-            <span className="font-medium text-theme-text">Desfazer / Refazer</span>
-            <kbd className="px-2 py-1 bg-theme-surface border border-theme-border rounded font-mono text-[11px] text-theme-primary font-bold">
-              Ctrl + Z / Ctrl + Y
-            </kbd>
-          </div>
-        </div>
+        <Button
+          size="sm"
+          onClick={() => {
+            window.location.hash = "/shortcuts";
+          }}
+          className="flex items-center gap-2 flex-shrink-0"
+        >
+          <span>Abrir Central de Atalhos</span>
+          <ExternalLink size={14} />
+        </Button>
       </Card>
 
       {/* 5. IA em Nuvem & Visão (Google Gemini 2.0 Flash) */}

@@ -10,6 +10,11 @@ export interface WindowsOsInfo {
   acrylic_supported: boolean;
   dark_mode_supported: boolean;
   current_theme_is_dark: boolean;
+  username?: string;
+  display_name?: string;
+  gpu_name?: string;
+  cpu_name?: string;
+  total_ram_gb?: string;
 }
 
 export type CustomizationCategory =

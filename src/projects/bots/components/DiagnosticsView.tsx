@@ -119,13 +119,13 @@ export const DiagnosticsView: React.FC = () => {
                 GPU detectada:
               </span>
               <span className="text-xs font-black text-pink-500">
-                {summary.gpuName || "NVIDIA GeForce RTX 3070 Ti"}
+                {summary.gpuName || "GPU do Sistema"}
               </span>
             </div>
             <p className="text-xs text-theme-text-muted">
               {summary.cudaAvailable
                 ? "CUDA ativo e funcional. Aceleração de inferência total habilitada."
-                : "GPU NVIDIA RTX 3070 Ti presente no sistema operacional. Inferência operando com PyTorch otimizado em CPU fallback."}
+                : `${summary.gpuName || "Placa de vídeo"} detectada no sistema operacional. Inferência operando com aceleração e otimização por fallback.`}
             </p>
           </div>
 

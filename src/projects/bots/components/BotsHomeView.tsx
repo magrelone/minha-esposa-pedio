@@ -66,7 +66,7 @@ export const BotsHomeView: React.FC = () => {
             <div className="flex flex-col text-xs">
               <span className="text-theme-text-muted">Aceleração Ativa</span>
               <span className="font-bold text-theme-text truncate max-w-[180px]">
-                {hardwareDevice || "NVIDIA RTX 3070 Ti"}
+                {hardwareDevice || "GPU do Sistema / CPU"}
               </span>
             </div>
           </div>
@@ -182,7 +182,7 @@ export const BotsHomeView: React.FC = () => {
               />
             </h3>
             <p className="text-xs text-theme-text-muted">
-              Status do Python, venv isolado, GPU RTX 3070 Ti e modelos YOLO.
+              Status do Python, venv isolado, aceleração por hardware e modelos YOLO.
             </p>
           </div>
         </div>

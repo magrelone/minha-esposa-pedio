@@ -202,6 +202,11 @@ export const useWindowsStore = create<WindowsState>((set, get) => {
             acrylic_supported: true,
             dark_mode_supported: true,
             current_theme_is_dark: true,
+            username: "Usuário",
+            display_name: "Usuário",
+            gpu_name: "GPU do Sistema",
+            cpu_name: "Processador",
+            total_ram_gb: "16",
           },
         });
       }

@@ -75,7 +75,7 @@ export const TrainingView: React.FC = () => {
 
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-theme-surface-card border border-theme-border/60 text-xs">
           <Cpu size={14} className="text-pink-500" />
-          <span className="font-bold text-theme-text">{hardwareDevice || "NVIDIA RTX 3070 Ti"}</span>
+          <span className="font-bold text-theme-text">{hardwareDevice || "GPU do Sistema / CPU"}</span>
         </div>
       </div>
 

@@ -198,7 +198,7 @@ export const VisionView: React.FC = () => {
                 FPS: {fpsCapture} cap / {fpsInference} inf
               </span>
               <span>•</span>
-              <span>{hardwareDevice || "NVIDIA RTX 3070 Ti"}</span>
+              <span>{hardwareDevice || "GPU do Sistema / CPU"}</span>
             </div>
           </div>
 
@@ -268,7 +268,7 @@ export const VisionView: React.FC = () => {
               <div className="flex items-center justify-between p-3 rounded-2xl bg-theme-surface-card border border-theme-border/40 text-xs">
                 <span className="text-theme-text-muted">Dispositivo</span>
                 <span className="font-bold text-theme-primary truncate max-w-[140px]">
-                  {hardwareDevice || "NVIDIA RTX 3070 Ti / CPU"}
+                  {hardwareDevice || "GPU do Sistema / CPU"}
                 </span>
               </div>
 

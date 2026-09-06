@@ -44,45 +44,109 @@ fn normalize_path(path: PathBuf) -> PathBuf {
     }
 }
 
-fn resolve_project_root() -> PathBuf {
-    // 1. Check relative to current working directory and parents
-    let candidates = [
-        PathBuf::from("."),
-        PathBuf::from(".."),
-        PathBuf::from("../.."),
-    ];
+#[allow(dead_code)]
+struct HardwareInfo {
+    gpu: String,
+    cpu: String,
+    user: String,
+}
 
-    for candidate in &candidates {
-        let check = candidate.join("integrations/robloxbot/adapter.py");
-        if check.exists() {
-            if let Ok(canon) = std::fs::canonicalize(candidate) {
-                return normalize_path(canon);
+fn run_ps_hw() -> HardwareInfo {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let script = r#"& {
+            $u = [System.Environment]::UserName
+            $gpu = (Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name -First 1)
+            $cpu = (Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name -First 1)
+            [PSCustomObject]@{ user = "$u"; gpu = "$gpu"; cpu = "$cpu" } | ConvertTo-Json -Compress
+        }"#;
+
+        if let Ok(output) = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+        {
+            let s = String::from_utf8_lossy(&output.stdout);
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&s) {
+                let gpu = val["gpu"].as_str().filter(|g| !g.is_empty()).unwrap_or("GPU Integrada / Dedicada").trim().to_string();
+                let cpu = val["cpu"].as_str().filter(|c| !c.is_empty()).unwrap_or("Processador").trim().to_string();
+                let user = val["user"].as_str().filter(|u| !u.is_empty()).unwrap_or("Usuário").trim().to_string();
+                return HardwareInfo { gpu, cpu, user };
             }
-            return candidate.clone();
         }
     }
 
-    // 2. Check executable directory and its subfolder 'resources' (Tauri NSIS installer layout)
+    HardwareInfo {
+        gpu: "GPU do Sistema".to_string(),
+        cpu: "Processador".to_string(),
+        user: "Usuário".to_string(),
+    }
+}
+
+fn resolve_project_root() -> PathBuf {
+    let sub_variations = ["", "_up_", "resources", "resources/_up_"];
+
+    // 1. Check relative to current working directory and parents
+    let base_dirs = [
+        PathBuf::from("."),
+        PathBuf::from(".."),
+        PathBuf::from("../.."),
+        PathBuf::from("../../.."),
+    ];
+
+    for base in &base_dirs {
+        for sub in &sub_variations {
+            let candidate = if sub.is_empty() {
+                base.clone()
+            } else {
+                base.join(sub)
+            };
+            let check = candidate.join("integrations/robloxbot/adapter.py");
+            if check.exists() {
+                if let Ok(canon) = std::fs::canonicalize(&candidate) {
+                    return normalize_path(canon);
+                }
+                return candidate;
+            }
+        }
+    }
+
+    // 2. Check executable directory and up to 6 parent levels (Tauri NSIS installer layout)
     if let Ok(exe_path) = std::env::current_exe() {
         let mut dir = exe_path;
-        while dir.pop() {
-            // Checa direto na pasta
-            let check = dir.join("integrations/robloxbot/adapter.py");
-            if check.exists() {
-                if let Ok(canon) = std::fs::canonicalize(&dir) {
-                    return normalize_path(canon);
-                }
-                return dir;
+        for _ in 0..7 {
+            if !dir.pop() {
+                break;
             }
+            for sub in &sub_variations {
+                let candidate = if sub.is_empty() {
+                    dir.clone()
+                } else {
+                    dir.join(sub)
+                };
+                let check = candidate.join("integrations/robloxbot/adapter.py");
+                if check.exists() {
+                    if let Ok(canon) = std::fs::canonicalize(&candidate) {
+                        return normalize_path(canon);
+                    }
+                    return candidate;
+                }
+            }
+        }
+    }
 
-            // Checa dentro da pasta resources do Tauri
-            let res_dir = dir.join("resources");
-            let res_check = res_dir.join("integrations/robloxbot/adapter.py");
-            if res_check.exists() {
-                if let Ok(canon) = std::fs::canonicalize(&res_dir) {
+    // 3. Check AppData Local Programs fallback
+    if let Ok(local_app) = std::env::var("LOCALAPPDATA") {
+        let p = PathBuf::from(local_app).join("Programs/Pedi para meu marido");
+        for sub in &sub_variations {
+            let candidate = if sub.is_empty() { p.clone() } else { p.join(sub) };
+            if candidate.join("integrations/robloxbot/adapter.py").exists() {
+                if let Ok(canon) = std::fs::canonicalize(&candidate) {
                     return normalize_path(canon);
                 }
-                return res_dir;
+                return candidate;
             }
         }
     }
@@ -90,16 +154,62 @@ fn resolve_project_root() -> PathBuf {
     PathBuf::from(".")
 }
 
+/// Localiza qualquer script garantindo resolução em dev ou no bundle NSIS
+fn resolve_script_file(rel_path: &str) -> PathBuf {
+    let root = resolve_project_root();
+    let direct = root.join(rel_path);
+    if direct.exists() {
+        return direct;
+    }
+
+    // Fallback para variações
+    let variations = [
+        format!("_up_/{}", rel_path),
+        format!("resources/{}", rel_path),
+        format!("resources/_up_/{}", rel_path),
+    ];
+
+    for v in &variations {
+        let check = root.join(v);
+        if check.exists() {
+            return check;
+        }
+    }
+
+    // Fallback relativo ao executável
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(parent) = exe_path.parent() {
+            for v in &variations {
+                let check = parent.join(v);
+                if check.exists() {
+                    return check;
+                }
+            }
+            let direct_parent = parent.join(rel_path);
+            if direct_parent.exists() {
+                return direct_parent;
+            }
+        }
+    }
+
+    direct
+}
+
 fn resolve_python_path() -> PathBuf {
     let root = resolve_project_root();
     
-    // 1. Check isolated virtualenv in project root
-    let venv_path = root.join("runtime/python/bots-env/Scripts/python.exe");
-    if venv_path.exists() {
-        if let Ok(canon) = std::fs::canonicalize(&venv_path) {
-            return normalize_path(canon);
+    // 1. Check isolated virtualenv in project root or its _up_
+    let venv_candidates = [
+        root.join("runtime/python/bots-env/Scripts/python.exe"),
+        root.join("_up_/runtime/python/bots-env/Scripts/python.exe"),
+    ];
+    for venv_path in &venv_candidates {
+        if venv_path.exists() {
+            if let Ok(canon) = std::fs::canonicalize(venv_path) {
+                return normalize_path(canon);
+            }
+            return venv_path.clone();
         }
-        return venv_path;
     }
 
     // 2. Check user-wide virtualenv in %APPDATA%\PediParaMeuMarido\runtime\bots-env
@@ -158,25 +268,33 @@ pub fn bot_start(
 
     let root = resolve_project_root();
     let python_exe = resolve_python_path();
-    let adapter_script = root.join("integrations/robloxbot/adapter.py");
+    let adapter_script = resolve_script_file("integrations/robloxbot/adapter.py");
 
     if !adapter_script.exists() {
         return Err(format!(
-            "Script adaptador não encontrado: {:?}",
+            "Script adaptador não encontrado: {:?}. Clique no banner '⚡ Instalar Automaticamente (1 Clique)' para preparar o ambiente dos bots!",
             adapter_script
         ));
     }
 
+    let python_path_env = format!(
+        "{};{};{}",
+        root.to_string_lossy(),
+        root.join("sdk").to_string_lossy(),
+        root.join("integrations").to_string_lossy()
+    );
+
     // Spawn Python process with structured arguments and piped stdio (no shell injection)
     let mut child = Command::new(&python_exe)
         .current_dir(&root)
+        .env("PYTHONPATH", python_path_env)
         .arg("-u") // unbuffered stdio
         .arg(&adapter_script)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Falha ao iniciar Python ({:?}): {}", python_exe, e))?;
+        .map_err(|e| format!("Falha ao iniciar Python ({:?}): {}. Prepare o ambiente clicando em Instalar Automaticamente.", python_exe, e))?;
 
     let stdout = child.stdout.take().ok_or("Falha ao abrir stdout do bot")?;
     let stderr = child.stderr.take().ok_or("Falha ao abrir stderr do bot")?;
@@ -392,10 +510,68 @@ pub fn bot_get_status() -> Result<Value, String> {
 pub fn bot_check_environment() -> Result<Value, String> {
     let root = resolve_project_root();
     let python_exe = resolve_python_path();
-    let script = root.join("integrations/robloxbot/env_checker.py");
+    let script = resolve_script_file("integrations/robloxbot/env_checker.py");
+
+    let python_valid = Command::new(&python_exe)
+        .arg("-c")
+        .arg("import sys; print(sys.version)")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if !python_valid || !script.exists() {
+        let hw_info = run_ps_hw();
+        return Ok(json!({
+            "status": "setup_required",
+            "needs_setup": true,
+            "message": "Ambiente dos bots ainda não inicializado neste computador. Clique em '⚡ Instalar Automaticamente (1 Clique)' acima para preparar tudo!",
+            "checks": [
+                {
+                    "id": "python",
+                    "name": "Python Runtime",
+                    "status": if python_valid { "ok" } else { "warning" },
+                    "message": if python_valid { "Python detectado no sistema operacional" } else { "Python precisa ser preparado" }
+                },
+                {
+                    "id": "venv",
+                    "name": "Ambiente Virtual Isolado",
+                    "status": "warning",
+                    "message": "Necessário criar bots-env com 1 clique"
+                },
+                {
+                    "id": "gpu",
+                    "name": "Aceleração por GPU & Hardware",
+                    "status": "ok",
+                    "gpuName": hw_info.gpu,
+                    "cudaAvailable": false,
+                    "message": format!("{} detectada no sistema operacional", hw_info.gpu)
+                },
+                {
+                    "id": "dependencies",
+                    "name": "Bibliotecas de Visão & IA",
+                    "status": "warning",
+                    "message": "Instalação automática disponível em 1 clique"
+                }
+            ],
+            "summary": {
+                "gpuName": hw_info.gpu,
+                "cudaAvailable": false,
+                "cpuName": hw_info.cpu,
+                "needsSetup": true
+            }
+        }));
+    }
+
+    let python_path_env = format!(
+        "{};{};{}",
+        root.to_string_lossy(),
+        root.join("sdk").to_string_lossy(),
+        root.join("integrations").to_string_lossy()
+    );
 
     let output = Command::new(&python_exe)
         .current_dir(&root)
+        .env("PYTHONPATH", python_path_env)
         .arg(&script)
         .output()
         .map_err(|e| format!("Falha ao executar env_checker: {}", e))?;
@@ -404,7 +580,17 @@ pub fn bot_check_environment() -> Result<Value, String> {
     if let Ok(parsed) = serde_json::from_str::<Value>(&out_str) {
         Ok(parsed)
     } else {
-        Err(format!("Saída inválida do env_checker: {}", out_str))
+        let hw_info = run_ps_hw();
+        Ok(json!({
+            "status": "setup_required",
+            "needs_setup": true,
+            "summary": {
+                "gpuName": hw_info.gpu,
+                "cudaAvailable": false,
+                "cpuName": hw_info.cpu,
+                "needsSetup": true
+            }
+        }))
     }
 }
 
@@ -412,10 +598,18 @@ pub fn bot_check_environment() -> Result<Value, String> {
 pub fn bot_discover_models() -> Result<Value, String> {
     let root = resolve_project_root();
     let python_exe = resolve_python_path();
-    let script = root.join("integrations/robloxbot/model_scanner.py");
+    let script = resolve_script_file("integrations/robloxbot/model_scanner.py");
+
+    let python_path_env = format!(
+        "{};{};{}",
+        root.to_string_lossy(),
+        root.join("sdk").to_string_lossy(),
+        root.join("integrations").to_string_lossy()
+    );
 
     let output = Command::new(&python_exe)
         .current_dir(&root)
+        .env("PYTHONPATH", python_path_env)
         .arg(&script)
         .output()
         .map_err(|e| format!("Falha ao executar model_scanner: {}", e))?;
@@ -432,10 +626,18 @@ pub fn bot_discover_models() -> Result<Value, String> {
 pub fn bot_list_capture_targets() -> Result<Value, String> {
     let root = resolve_project_root();
     let python_exe = resolve_python_path();
-    let script = root.join("integrations/robloxbot/window_scanner.py");
+    let script = resolve_script_file("integrations/robloxbot/window_scanner.py");
+
+    let python_path_env = format!(
+        "{};{};{}",
+        root.to_string_lossy(),
+        root.join("sdk").to_string_lossy(),
+        root.join("integrations").to_string_lossy()
+    );
 
     let output = Command::new(&python_exe)
         .current_dir(&root)
+        .env("PYTHONPATH", python_path_env)
         .arg(&script)
         .output()
         .map_err(|e| format!("Falha ao executar window_scanner: {}", e))?;
@@ -465,9 +667,8 @@ pub fn bot_kill_all() {
 /// Executa a instalação/preparação automática do runtime Python e dependências para os bots
 #[tauri::command]
 pub fn bot_setup_environment(app: AppHandle) -> Result<Value, String> {
-    let root = resolve_project_root();
-    let setup_script = root.join("scripts/setup_bot_runtime.ps1");
-    let req_file = root.join("runtime/python/requirements.txt");
+    let setup_script = resolve_script_file("scripts/setup_bot_runtime.ps1");
+    let req_file = resolve_script_file("runtime/python/requirements.txt");
     let req_arg = req_file.to_string_lossy().to_string();
     let script_str = setup_script.to_string_lossy().to_string();
 

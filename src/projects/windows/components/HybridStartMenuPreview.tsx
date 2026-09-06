@@ -42,6 +42,16 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
   const [searchTerm, setSearchTerm] = useState("");
   const [powerMenuOpen, setPowerMenuOpen] = useState(false);
 
+  const rawUserName = osInfo?.display_name || osInfo?.username || "Usuário";
+  const userInitials = (
+    rawUserName
+      .split(/[\s._-]+/)
+      .filter(Boolean)
+      .map((n) => n[0])
+      .slice(0, 2)
+      .join("") || "U"
+  ).toUpperCase();
+
   // Lista fiel aos aplicativos oficiais do sistema e do usuário (sem emojis!)
   const pinnedApps = [
     { name: "Pedi para meu marido 💕", icon: <AppBrandIcon size={26} />, desc: "Central de Automação & Customização" },
@@ -134,13 +144,13 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
           <div className="space-y-1">
             {/* Usuário */}
             <button
-              onClick={() => showNotification("Abrindo pasta pessoal do usuário")}
+              onClick={() => showNotification(`Abrindo pasta pessoal de ${rawUserName}`)}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-bold text-white transition-all text-left"
             >
               <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-pink-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-black shadow-xs">
-                M
+                {userInitials[0] || "U"}
               </div>
-              <span className="truncate">Maicon Christian</span>
+              <span className="truncate">{rawUserName}</span>
             </button>
 
             <div className="my-1.5 border-t border-white/10" />
@@ -210,12 +220,12 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
       {/* Rodapé Moderno com Avatar e Opções de Energia */}
       <div className="p-3 px-4 border-t border-white/10 bg-white/5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full ring-2 ring-pink-500 overflow-hidden bg-slate-800 flex items-center justify-center">
-            <span className="text-xs font-bold">MC</span>
+          <div className="w-8 h-8 rounded-full ring-2 ring-pink-500 overflow-hidden bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white">
+            <span className="text-xs font-black">{userInitials}</span>
           </div>
           <div>
-            <div className="text-xs font-bold text-white">Maicon Christian</div>
-            <div className="text-[10px] text-pink-300 font-semibold">Conta Local • Administrador</div>
+            <div className="text-xs font-bold text-white">{rawUserName}</div>
+            <div className="text-[10px] text-pink-300 font-semibold">Conta do Usuário • {osInfo?.os_name || "Windows"}</div>
           </div>
         </div>
 

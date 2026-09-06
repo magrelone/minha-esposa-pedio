@@ -97,6 +97,9 @@ try {
     if (-not $reqPath -or (-not (Test-Path $reqPath))) {
         $candidates = @(
             Join-Path $PSScriptRoot "..\runtime\python\requirements.txt",
+            Join-Path $PSScriptRoot "runtime\python\requirements.txt",
+            Join-Path $PSScriptRoot "_up_\runtime\python\requirements.txt",
+            Join-Path $PSScriptRoot "..\resources\_up_\runtime\python\requirements.txt",
             Join-Path $PSScriptRoot "requirements.txt",
             Join-Path $appData "PediParaMeuMarido\requirements.txt"
         )

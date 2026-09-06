@@ -238,7 +238,7 @@ export const useBotsStore = create<BotsState>()(
       previewImage: null,
       uptimeSecs: 0,
       lastAction: null,
-      hardwareDevice: "GPU RTX 3070 Ti / CPU",
+      hardwareDevice: "GPU do Sistema / CPU",
 
       activeLearning: {
         enabled: true,

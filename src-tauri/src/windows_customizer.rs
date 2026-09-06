@@ -15,6 +15,11 @@ pub struct WindowsOsInfo {
     pub acrylic_supported: bool,
     pub dark_mode_supported: bool,
     pub current_theme_is_dark: bool,
+    pub username: String,
+    pub display_name: String,
+    pub gpu_name: String,
+    pub cpu_name: String,
+    pub total_ram_gb: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -52,7 +57,7 @@ fn run_ps(script: &str) -> Result<String, String> {
     }
 }
 
-/// Detecta com segurança as informações da versão do Windows instalada
+/// Detecta com segurança as informações da versão do Windows instalada e hardware real
 #[tauri::command]
 pub fn windows_get_os_info() -> Result<WindowsOsInfo, String> {
     let arch = std::env::consts::ARCH.to_string();
@@ -67,6 +72,22 @@ pub fn windows_get_os_info() -> Result<WindowsOsInfo, String> {
         let dark_check = run_ps("(Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize' -Name AppsUseLightTheme -ErrorAction SilentlyContinue).AppsUseLightTheme").unwrap_or_default();
         let is_dark = dark_check == "0";
 
+        // Coleta de usuário e hardware real do PC
+        let hw_json_str = run_ps(r#"& {
+            $u = [System.Environment]::UserName
+            $gpu = (Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name -First 1)
+            $cpu = (Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name -First 1)
+            $ram = [math]::Round(((Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).TotalPhysicalMemory / 1GB), 1)
+            [PSCustomObject]@{ user = "$u"; gpu = "$gpu"; cpu = "$cpu"; ram = "$ram" } | ConvertTo-Json -Compress
+        }"#).unwrap_or_default();
+
+        let hw_json: serde_json::Value = serde_json::from_str(&hw_json_str).unwrap_or_default();
+        let username = hw_json["user"].as_str().filter(|s| !s.is_empty()).unwrap_or("Usuário").trim().to_string();
+        let display_name = username.clone();
+        let gpu_name = hw_json["gpu"].as_str().filter(|s| !s.is_empty()).unwrap_or("GPU Integrada / Dedicada").trim().to_string();
+        let cpu_name = hw_json["cpu"].as_str().filter(|s| !s.is_empty()).unwrap_or("Processador").trim().to_string();
+        let total_ram_gb = hw_json["ram"].as_str().filter(|s| !s.is_empty()).unwrap_or("16").trim().to_string();
+
         Ok(WindowsOsInfo {
             os_name,
             build_number: build_str,
@@ -77,6 +98,11 @@ pub fn windows_get_os_info() -> Result<WindowsOsInfo, String> {
             acrylic_supported: true,
             dark_mode_supported: true,
             current_theme_is_dark: is_dark,
+            username,
+            display_name,
+            gpu_name,
+            cpu_name,
+            total_ram_gb,
         })
     }
 
@@ -92,6 +118,11 @@ pub fn windows_get_os_info() -> Result<WindowsOsInfo, String> {
             acrylic_supported: true,
             dark_mode_supported: true,
             current_theme_is_dark: true,
+            username: "Usuário".to_string(),
+            display_name: "Usuário".to_string(),
+            gpu_name: "GPU Simulada".to_string(),
+            cpu_name: "CPU Simulada".to_string(),
+            total_ram_gb: "16".to_string(),
         })
     }
 }
