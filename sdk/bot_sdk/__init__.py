@@ -15,11 +15,13 @@ from .training import TrainingManager
 from .decision import BotStrategy, DecisionEngine, TargetSelector
 from .navigation import NavigationEngine
 from .input import ActionQueue, InputEngine, MockInputDriver, SafePynputDriver
-from .runtime import BotRuntime
+from .cloud_vision import GeminiCloudVision
+from .active_learning import ActiveLearningManager
 
 __all__ = [
     "Action",
     "ActionType",
+    "ActiveLearningManager",
     "BotContext",
     "BotRuntime",
     "BotState",

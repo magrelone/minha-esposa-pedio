@@ -12,11 +12,12 @@ import {
   TrendingDown,
   Clock,
   Check,
+  Brain,
 } from "lucide-react";
 import { useBotsStore } from "../store/botsStore";
 
 export const TrainingView: React.FC = () => {
-  const { hardwareDevice, addLog } = useBotsStore();
+  const { hardwareDevice, addLog, activeLearning } = useBotsStore();
 
   const [profile, setProfile] = useState<"fast_test" | "balanced" | "full">("balanced");
   const [isTraining, setIsTraining] = useState(false);
@@ -105,6 +106,36 @@ export const TrainingView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Active Learning Continuous Dataset Card */}
+      <div className="p-5 rounded-3xl bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-indigo-500/10 border border-purple-500/20 shadow-soft flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-2xl bg-purple-500/20 text-purple-400 flex-shrink-0">
+            <Brain size={22} />
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-black text-theme-text">Dataset Vivo do Aprendizado Contínuo (Gemini)</h3>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 font-bold">Online</span>
+            </div>
+            <p className="text-xs text-theme-text-muted">
+              {activeLearning?.samplesCollected || 0} amostras auto-anotadas pelo Gemini durante as sessões de jogo ativas.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            addLog("info", `Incorporando ${activeLearning?.samplesCollected || 0} amostras do aprendizado contínuo ao treino! 🧠✨`);
+            handleStartTraining();
+          }}
+          disabled={isTraining}
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-md flex-shrink-0"
+        >
+          <Sparkles size={14} />
+          <span>Treinar com Amostras Vivas</span>
+        </button>
+      </div>
 
       {/* Profile Selector Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -70,6 +70,18 @@ class BotManagerService {
         }
         break;
 
+      case "active_learning_sample":
+        store.updateActiveLearning({
+          samplesCollected: data.samples_collected || 0,
+          lastDetectionsCount: data.detections_count || 0,
+          lastReason: data.reason || "",
+          quota: data.quota || null,
+        });
+        if (data.message) {
+          store.addLog("vision", data.message);
+        }
+        break;
+
       case "log":
         store.addLog(data.level || "info", data.message || "");
         break;
@@ -135,11 +147,23 @@ class BotManagerService {
         store.updateBotConfig(botId, fixedConfig);
       }
 
+      const savedGeminiKey = typeof localStorage !== "undefined" ? (localStorage.getItem("pmm_gemini_api_key") || "") : "";
+      const activeLearningEnabled = store.activeLearning?.enabled ?? true;
+
+      const fullConfigWithAi = {
+        ...fixedConfig,
+        gemini_api_key: savedGeminiKey,
+        active_learning: activeLearningEnabled,
+      };
+
       await invoke("bot_start", {
         botId,
-        config: fixedConfig,
+        config: fullConfigWithAi,
       });
       store.addLog("info", "Processo Python iniciado, aguardando modelo YOLO... 🧸");
+      if (savedGeminiKey && activeLearningEnabled) {
+        store.addLog("vision", "🧠 Aprendizado Contínuo Gemini 2.0 Flash ativado para esta sessão!");
+      }
       return true;
     } catch (err: any) {
       console.warn("Erro ao iniciar via Tauri, verificando fallback:", err);

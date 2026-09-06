@@ -9,6 +9,7 @@ import {
   RobloxSubTab,
   VisionDetection,
   VisionModelItem,
+  ActiveLearningState,
 } from "../types";
 import { BOT_REGISTRY } from "../core/BotRegistry";
 
@@ -37,6 +38,11 @@ export interface BotsState {
   uptimeSecs: number;
   lastAction: string | null;
   hardwareDevice: string;
+
+  // Active Continuous Learning (Google Gemini 2.0 Flash)
+  activeLearning: ActiveLearningState;
+  setActiveLearningEnabled: (enabled: boolean) => void;
+  updateActiveLearning: (data: Partial<ActiveLearningState>) => void;
 
   // Environment & Models
   environmentData: any | null;
@@ -231,6 +237,22 @@ export const useBotsStore = create<BotsState>()(
       uptimeSecs: 0,
       lastAction: null,
       hardwareDevice: "GPU RTX 3070 Ti / CPU",
+
+      activeLearning: {
+        enabled: true,
+        samplesCollected: 0,
+        lastDetectionsCount: 0,
+        lastReason: "",
+        quota: null,
+      },
+      setActiveLearningEnabled: (enabled) =>
+        set((state) => ({
+          activeLearning: { ...state.activeLearning, enabled },
+        })),
+      updateActiveLearning: (data) =>
+        set((state) => ({
+          activeLearning: { ...state.activeLearning, ...data },
+        })),
 
       environmentData: null,
       isCheckingEnv: false,

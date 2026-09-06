@@ -22,11 +22,19 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 VENDOR_DIR = BASE_DIR / "vendor"
 
-sys.path.insert(0, str(VENDOR_DIR))
+PROJECT_ROOT = BASE_DIR.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from sdk.bot_sdk.active_learning import ActiveLearningManager
+except Exception as e:
+    ActiveLearningManager = None
 
 # Global state
 running = False
 paused = False
+active_learner = None
 config = {
     "weights": str(VENDOR_DIR / "bots" / "mm2_yolo_coin_collector" / "weights" / "yolo11_roblox_official.pt"),
     "device": "auto",
@@ -52,6 +60,44 @@ def emit(msg_type, **kwargs):
 
 def log(level, message):
     emit("log", level=level, message=message, time=time.strftime("%H:%M:%S"))
+
+def setup_active_learning(cfg):
+    global active_learner
+    if not ActiveLearningManager:
+        return None
+
+    if not cfg.get("active_learning", True):
+        return None
+
+    api_key = cfg.get("gemini_api_key") or os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        return None
+
+    try:
+        target_desc = "espíritos ou ursos colecionáveis" if "hanami" in str(cfg.get("bot_id", "")).lower() else "moedas ou itens colecionáveis"
+        class_name = "spirit" if "hanami" in str(cfg.get("bot_id", "")).lower() else "coin"
+        active_learner = ActiveLearningManager(
+            api_key=api_key,
+            min_interval_seconds=12.0,
+            target_description=target_desc,
+            class_name=class_name
+        )
+        active_learner.set_emit_callback(emit)
+        active_learner.start()
+        log("vision", f"🧠 Aprendizado Contínuo Gemini 2.0 Flash ativado ({active_learner.samples_collected} amostras prévias salvas em disco)!")
+        return active_learner
+    except Exception as e:
+        log("warning", f"Não foi possível iniciar Active Learning: {e}")
+        return None
+
+def stop_active_learning():
+    global active_learner
+    if active_learner:
+        try:
+            active_learner.stop()
+        except Exception:
+            pass
+        active_learner = None
 
 # ====================================================================
 # DirectInput Hardware Scancode Driver (Roblox & DirectX Compatible)
@@ -1211,6 +1257,7 @@ def hanami_worker():
         f"🌸 Config: modo='{mode}', detect≥{conf_detect:.2f}, chase≥{conf_chase:.2f}, "
         f"dwell={dwell_time}s, PATRULHA SEMPRE ligada, AFK={int(rest_duration_secs/60)}min"
     )
+    setup_active_learning(config)
 
     while running:
         if paused:
@@ -1298,6 +1345,25 @@ def hanami_worker():
             mode=mode,
             conf_thres=conf_detect,
         )
+
+        # 2.5 Active Continuous Learning com Google Gemini 2.0 Flash
+        if active_learner:
+            if active_learner.should_sample(detections):
+                active_learner.submit_frame_for_learning(frame, reason="hanami_runtime")
+
+            if not detections:
+                oracle_dets = active_learner.get_latest_oracle_detections()
+                if oracle_dets:
+                    for od in oracle_dets:
+                        detections.append({
+                            "class_id": 0,
+                            "label": "urso_branco",
+                            "confidence": od["confidence"],
+                            "bbox": od["bbox"],
+                            "rel_center": od["rel_center"],
+                            "kind": "white",
+                        })
+                    log("vision", "🔮 Oráculo Gemini identificou espírito/urso em tempo real!")
         # Re-lê conf ao vivo (slider) sem matar a sensibilidade
         live_conf = float(config.get("conf_thres", conf_detect))
         conf_detect = max(0.22, min(0.40, live_conf if live_conf <= 0.45 else 0.28))
@@ -1468,6 +1534,7 @@ def hanami_worker():
         time.sleep(0.02)
 
     input_controller.release_all()
+    stop_active_learning()
     log("info", "Bot Hanami foi descansar 💗")
     emit("status", state="stopped", message="Bot finalizado")
 
@@ -1508,6 +1575,7 @@ def bot_worker():
 
     emit("status", state="running", device=str(device).upper(), model=Path(weights_path).name)
     log("info", f"Bot acordou 🧸 — Pronto para trabalhar em {str(device).upper()}!")
+    setup_active_learning(config)
 
     last_preview_time = 0
     preview_interval = 1.0 / max(1, config.get("preview_fps", 6))
@@ -1547,6 +1615,23 @@ def bot_worker():
         except Exception as e:
             log("warning", f"Erro na inferência: {e}")
             detections = []
+
+        # 2.5 Active Continuous Learning com Google Gemini 2.0 Flash
+        if active_learner:
+            if active_learner.should_sample(detections):
+                active_learner.submit_frame_for_learning(frame, reason="bot_runtime")
+
+            if not detections:
+                oracle_dets = active_learner.get_latest_oracle_detections()
+                if oracle_dets:
+                    for od in oracle_dets:
+                        detections.append({
+                            "class_id": 0,
+                            "confidence": od["confidence"],
+                            "bbox": od["bbox"],
+                            "rel_center": od["rel_center"],
+                        })
+                    log("vision", "🔮 Oráculo Gemini auxiliou o bot com alvo detectado pela IA em nuvem!")
 
         t_inf = time.time()
 
@@ -1628,6 +1713,7 @@ def bot_worker():
         time.sleep(0.01)
 
     input_controller.release_all()
+    stop_active_learning()
     log("info", "Bot foi descansar 💗")
     emit("status", state="stopped", message="Bot finalizado")
 
@@ -1652,6 +1738,7 @@ def stdin_listener():
                     running = False
                     paused = False
                     input_controller.release_all()
+                    stop_active_learning()
                     if worker_thread and worker_thread.is_alive():
                         worker_thread.join(timeout=2.0)
 
@@ -1669,6 +1756,7 @@ def stdin_listener():
                 running = False
                 paused = False
                 input_controller.release_all()
+                stop_active_learning()
                 if worker_thread and worker_thread.is_alive():
                     worker_thread.join(timeout=1.5)
                 emit("status", state="stopped", message="Bot parado")

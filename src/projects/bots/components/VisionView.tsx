@@ -10,6 +10,10 @@ import {
   Maximize2,
   Scan,
   Sparkles,
+  Brain,
+  Zap,
+  ExternalLink,
+  ShieldCheck,
 } from "lucide-react";
 import { useBotsStore } from "../store/botsStore";
 import { BotManager } from "../core/BotManager";
@@ -29,6 +33,8 @@ export const VisionView: React.FC = () => {
     botStatus,
     updateBotConfig,
     setScreenSelectorOpen,
+    activeLearning,
+    setActiveLearningEnabled,
   } = useBotsStore();
 
   const [showBoundingBoxes, setShowBoundingBoxes] = useState(true);
@@ -310,6 +316,69 @@ export const VisionView: React.FC = () => {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Continuous Online Learning Card (Google Gemini 2.0 Flash) */}
+          <div className="p-5 rounded-3xl bg-gradient-to-br from-theme-surface via-theme-surface to-purple-500/5 border border-theme-border/60 shadow-soft flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-purple-500/15 text-purple-500">
+                  <Brain size={16} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-black text-theme-text">Aprendizado Contínuo</span>
+                  <span className="text-[10px] text-theme-text-muted">Google Gemini 2.0 Flash</span>
+                </div>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={activeLearning?.enabled ?? true}
+                  onChange={(e) => {
+                    setActiveLearningEnabled(e.target.checked);
+                    pushConfig({ active_learning: e.target.checked });
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-8 h-4 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-500"></div>
+              </label>
+            </div>
+
+            {/* Status Indicator */}
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-theme-surface-card border border-theme-border/40 text-xs">
+              <span className="text-theme-text-muted">Status do Aprendizado</span>
+              {isRunning && activeLearning?.enabled ? (
+                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-500">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  Aprendendo ao Vivo ✨
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-gray-400">
+                  {activeLearning?.enabled ? "Pronto p/ rodar" : "Pausado"}
+                </span>
+              )}
+            </div>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-3 rounded-2xl bg-theme-surface-card border border-theme-border/40 flex flex-col">
+                <span className="text-[10px] text-theme-text-muted">Amostras Auto-Anotadas</span>
+                <span className="text-sm font-black text-theme-text font-mono">
+                  {activeLearning?.samplesCollected || 0} frames
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-theme-surface-card border border-theme-border/40 flex flex-col">
+                <span className="text-[10px] text-theme-text-muted">Cota Gratuita</span>
+                <span className="text-sm font-black text-purple-500 font-mono">
+                  {activeLearning?.quota?.requests_today || 0}/1.500 dia
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-theme-text-muted leading-relaxed">
+              💡 Enquanto o bot joga, o Gemini analisa frames desafiadores em segundo plano e auto-anota os dados no dataset, servindo também como oráculo visual!
+            </p>
           </div>
         </div>
       </div>

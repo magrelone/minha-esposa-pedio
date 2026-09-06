@@ -27,3 +27,11 @@
   - Desfoque direcional e gaussiano para compensar borrão à distância
 - **Formato**: YOLO Normalizado (.txt)
 - **Finalidade**: Treinamento do detector oficial `yolo11_hanami_spirits.pt`.
+
+### 3. `gemini-active-learning-dataset`
+- **Jogo**: Jogos em execução ativa (Roblox MM2, Hanami, etc.)
+- **Classes**: Itens colecionáveis detectados pela IA multimodal em tempo real
+- **Configuração**: `runtime/active_learning_dataset/`
+- **Origem**: Google Gemini 2.0 Flash (`GeminiCloudVision` & `ActiveLearningManager`)
+- **Formato**: YOLO Normalizado (.txt) + Imagens (.jpg)
+- **Finalidade**: Aprendizado contínuo ativo durante o jogo sem anotação manual e enriquecimento contínuo dos modelos YOLO locais.

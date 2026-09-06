@@ -37,6 +37,22 @@ export interface BotConfig {
   patrol_when_empty?: boolean;
   /** Hanami: desiste de um alvo fantasma e volta à patrulha após N segundos. */
   approach_timeout_s?: number;
+  /** Aprendizado Contínuo com Google Gemini 2.0 Flash em tempo real */
+  active_learning?: boolean;
+  gemini_api_key?: string;
+}
+
+export interface ActiveLearningState {
+  enabled: boolean;
+  samplesCollected: number;
+  lastDetectionsCount: number;
+  lastReason: string;
+  quota?: {
+    requests_today: number;
+    daily_limit: number;
+    remaining_today: number;
+    percent_used: number;
+  } | null;
 }
 
 export interface BotDefinition {
