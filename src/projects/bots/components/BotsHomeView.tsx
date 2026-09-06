@@ -19,6 +19,7 @@ import {
 import { useBotsStore } from "../store/botsStore";
 import { BOT_REGISTRY } from "../core/BotRegistry";
 import { BotManager } from "../core/BotManager";
+import { EnvironmentSetupBanner } from "./EnvironmentSetupBanner";
 
 export const BotsHomeView: React.FC = () => {
   const {
@@ -39,6 +40,9 @@ export const BotsHomeView: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
+      {/* Smart Environment Setup Banner */}
+      <EnvironmentSetupBanner />
+
       {/* Cute Banner Header */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-pink-500/15 via-rose-400/10 to-purple-500/15 border border-pink-300/30 p-6 shadow-soft">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">

@@ -10,7 +10,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 mod bot_manager;
 use bot_manager::{
     bot_check_environment, bot_discover_models, bot_get_status, bot_kill_all, bot_list_capture_targets,
-    bot_pause, bot_resume, bot_send_command, bot_start, bot_stop,
+    bot_pause, bot_resume, bot_send_command, bot_start, bot_stop, bot_setup_environment,
 };
 
 mod autoclick_engine;
@@ -508,6 +508,7 @@ pub fn run() {
             bot_check_environment,
             bot_discover_models,
             bot_list_capture_targets,
+            bot_setup_environment,
             autoclick_start,
             autoclick_stop,
             autoclick_pause,

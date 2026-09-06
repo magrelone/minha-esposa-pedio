@@ -15,6 +15,30 @@ class BotManagerService {
       await listen<{ bot_id: string; data: any }>("bot-event", (event) => {
         this.handleBotEvent(event.payload.bot_id, event.payload.data);
       });
+
+      await listen<{ step: string; percent: number; message: string }>("bot-setup-progress", (event) => {
+        const store = useBotsStore.getState();
+        store.setSetupProgress({
+          isInstalling: true,
+          step: event.payload.step,
+          percent: event.payload.percent,
+          message: event.payload.message,
+        });
+      });
+
+      await listen<{ success: boolean }>("bot-setup-finished", (event) => {
+        const store = useBotsStore.getState();
+        store.setSetupProgress({
+          isInstalling: false,
+          step: "finished",
+          percent: 100,
+          message: event.payload.success ? "Ambiente de Visão e IA pronto para uso! ✨" : "Instalação finalizada.",
+          success: event.payload.success,
+        });
+        this.refreshEnvironment().catch(() => {});
+        this.refreshModels().catch(() => {});
+      });
+
       this.isListening = true;
     } catch (e) {
       console.warn("Tauri event listener indisponível (modo web dev):", e);
@@ -378,6 +402,28 @@ class BotManagerService {
         lastAction: randomCoin ? "Coletando moeda em (0.45, 0.62)" : "Explorando área (W)",
       });
     }, 1200);
+  }
+
+  public async setupEnvironment(): Promise<void> {
+    const store = useBotsStore.getState();
+    store.setSetupProgress({
+      isInstalling: true,
+      step: "starting",
+      percent: 5,
+      message: "Iniciando preparação automática do ambiente dos bots...",
+    });
+
+    try {
+      await invoke("bot_setup_environment");
+    } catch (e: any) {
+      store.setSetupProgress({
+        isInstalling: false,
+        step: "error",
+        percent: 0,
+        message: `Falha ao iniciar instalador: ${e?.message || e}`,
+        success: false,
+      });
+    }
   }
 
   private stopMockSimulation() {

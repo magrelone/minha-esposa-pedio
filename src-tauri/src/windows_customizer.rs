@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+pub static TASKBAR_IS_CENTERED: AtomicBool = AtomicBool::new(true);
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct WindowsOsInfo {
@@ -164,7 +167,10 @@ pub fn windows_apply_taskbar_config(
     show_seconds: bool,
     search_visible: bool,
 ) -> Result<String, String> {
-    let al_val = if alignment == "left" { 0 } else { 1 };
+    let is_center = alignment != "left";
+    TASKBAR_IS_CENTERED.store(is_center, Ordering::SeqCst);
+
+    let al_val = if is_center { 1 } else { 0 };
     let sec_val = if show_seconds { 1 } else { 0 };
     let search_val = if search_visible { 2 } else { 0 };
 
@@ -411,15 +417,36 @@ pub fn windows_toggle_hybrid_start_menu(app: tauri::AppHandle) -> Result<bool, S
         let _ = win.hide();
         Ok(false)
     } else {
-        // Posiciona no canto inferior esquerdo, acima da barra de tarefas
+        // Posiciona no centro ou no canto de acordo com o alinhamento da barra de tarefas
         if let Ok(Some(mon)) = win.primary_monitor() {
             let mon_size = mon.size();
             let mon_pos = mon.position();
-            let _win_width = 660;
+            let win_width = 660;
             let win_height = 520;
             let taskbar_height = 56;
 
-            let pos_x = mon_pos.x + 18;
+            // Verifica se a barra está centralizada (via registro do Windows ou estado em cache)
+            let is_centered = {
+                #[cfg(target_os = "windows")]
+                {
+                    let script = r#"(Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name TaskbarAl -ErrorAction SilentlyContinue).TaskbarAl"#;
+                    if let Ok(out) = run_ps(script) {
+                        out.trim() == "1"
+                    } else {
+                        TASKBAR_IS_CENTERED.load(Ordering::SeqCst)
+                    }
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    TASKBAR_IS_CENTERED.load(Ordering::SeqCst)
+                }
+            };
+
+            let pos_x = if is_centered {
+                mon_pos.x + ((mon_size.width as i32 - win_width) / 2)
+            } else {
+                mon_pos.x + 18
+            };
             let pos_y = mon_pos.y + (mon_size.height as i32) - win_height - taskbar_height;
 
             let _ = win.set_position(tauri::PhysicalPosition::new(pos_x, pos_y));

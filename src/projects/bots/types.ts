@@ -42,6 +42,14 @@ export interface BotConfig {
   gemini_api_key?: string;
 }
 
+export interface BotSetupProgress {
+  isInstalling: boolean;
+  step: string;
+  percent: number;
+  message: string;
+  success?: boolean;
+}
+
 export interface ActiveLearningState {
   enabled: boolean;
   samplesCollected: number;

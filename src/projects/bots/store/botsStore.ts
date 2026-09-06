@@ -87,6 +87,8 @@ export interface BotsState {
   setIsCheckingEnv: (loading: boolean) => void;
   setDiscoveredModels: (models: VisionModelItem[]) => void;
   setIsLoadingModels: (loading: boolean) => void;
+  setupProgress: import("../types").BotSetupProgress | null;
+  setSetupProgress: (progress: import("../types").BotSetupProgress | null) => void;
 }
 
 const DEFAULT_PROFILES: BotProfile[] = [
@@ -258,6 +260,8 @@ export const useBotsStore = create<BotsState>()(
       isCheckingEnv: false,
       discoveredModels: [],
       isLoadingModels: false,
+      setupProgress: null,
+      setSetupProgress: (progress) => set({ setupProgress: progress }),
 
       configModalBotId: null,
       screenSelectorOpen: false,

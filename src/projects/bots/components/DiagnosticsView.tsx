@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useBotsStore } from "../store/botsStore";
 import { BotManager } from "../core/BotManager";
+import { EnvironmentSetupBanner } from "./EnvironmentSetupBanner";
 
 export const DiagnosticsView: React.FC = () => {
   const { environmentData, isCheckingEnv } = useBotsStore();
@@ -22,6 +23,9 @@ export const DiagnosticsView: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
+      {/* Smart Environment Setup Banner */}
+      <EnvironmentSetupBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-3xl bg-theme-surface border border-theme-border/60 shadow-soft">
         <div className="flex items-center gap-3">

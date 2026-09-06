@@ -20,6 +20,7 @@ import { useBotsStore } from "../store/botsStore";
 import { BOT_REGISTRY } from "../core/BotRegistry";
 import { BotManager } from "../core/BotManager";
 import { RobloxSubTab } from "../types";
+import { EnvironmentSetupBanner } from "./EnvironmentSetupBanner";
 
 export const RobloxView: React.FC = () => {
   const {
@@ -53,6 +54,9 @@ export const RobloxView: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
+      {/* Smart Environment Setup Banner */}
+      <EnvironmentSetupBanner />
+
       {/* Subtabs Bar */}
       <div className="flex items-center justify-between border-b border-theme-border/60 pb-3">
         <div className="flex items-center gap-1.5 overflow-x-auto">

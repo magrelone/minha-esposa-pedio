@@ -62,16 +62,27 @@ fn resolve_project_root() -> PathBuf {
         }
     }
 
-    // 2. Check ancestors of current executable
+    // 2. Check executable directory and its subfolder 'resources' (Tauri NSIS installer layout)
     if let Ok(exe_path) = std::env::current_exe() {
         let mut dir = exe_path;
         while dir.pop() {
+            // Checa direto na pasta
             let check = dir.join("integrations/robloxbot/adapter.py");
             if check.exists() {
                 if let Ok(canon) = std::fs::canonicalize(&dir) {
                     return normalize_path(canon);
                 }
                 return dir;
+            }
+
+            // Checa dentro da pasta resources do Tauri
+            let res_dir = dir.join("resources");
+            let res_check = res_dir.join("integrations/robloxbot/adapter.py");
+            if res_check.exists() {
+                if let Ok(canon) = std::fs::canonicalize(&res_dir) {
+                    return normalize_path(canon);
+                }
+                return res_dir;
             }
         }
     }
@@ -81,7 +92,8 @@ fn resolve_project_root() -> PathBuf {
 
 fn resolve_python_path() -> PathBuf {
     let root = resolve_project_root();
-    // 1. Check isolated virtualenv in runtime/python/bots-env
+    
+    // 1. Check isolated virtualenv in project root
     let venv_path = root.join("runtime/python/bots-env/Scripts/python.exe");
     if venv_path.exists() {
         if let Ok(canon) = std::fs::canonicalize(&venv_path) {
@@ -90,7 +102,28 @@ fn resolve_python_path() -> PathBuf {
         return venv_path;
     }
 
-    // 2. Fallback to system python
+    // 2. Check user-wide virtualenv in %APPDATA%\PediParaMeuMarido\runtime\bots-env
+    if let Ok(app_data) = std::env::var("APPDATA") {
+        let global_venv = PathBuf::from(app_data).join("PediParaMeuMarido/runtime/bots-env/Scripts/python.exe");
+        if global_venv.exists() {
+            if let Ok(canon) = std::fs::canonicalize(&global_venv) {
+                return normalize_path(canon);
+            }
+            return global_venv;
+        }
+    }
+
+    // 3. Check standard Python install in %LOCALAPPDATA%\Programs\Python
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        for ver in &["Python311", "Python310", "Python312"] {
+            let py_path = PathBuf::from(&local_app_data).join(format!("Programs/Python/{}/python.exe", ver));
+            if py_path.exists() {
+                return py_path;
+            }
+        }
+    }
+
+    // 4. Fallback to system python
     PathBuf::from("python")
 }
 
@@ -428,3 +461,65 @@ pub fn bot_kill_all() {
         mgr.status = "stopped".to_string();
     }
 }
+
+/// Executa a instalação/preparação automática do runtime Python e dependências para os bots
+#[tauri::command]
+pub fn bot_setup_environment(app: AppHandle) -> Result<Value, String> {
+    let root = resolve_project_root();
+    let setup_script = root.join("scripts/setup_bot_runtime.ps1");
+    let req_file = root.join("runtime/python/requirements.txt");
+    let req_arg = req_file.to_string_lossy().to_string();
+    let script_str = setup_script.to_string_lossy().to_string();
+
+    let app_handle = app.clone();
+
+    std::thread::spawn(move || {
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+            let mut cmd = Command::new("powershell");
+            cmd.args([
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                &script_str,
+                "-ReqFile",
+                &req_arg,
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+            if let Ok(mut child) = cmd.spawn() {
+                if let Some(stdout) = child.stdout.take() {
+                    let reader = BufReader::new(stdout);
+                    for line in reader.lines().flatten() {
+                        if line.starts_with("[SETUP_PROGRESS]") {
+                            let parts: Vec<&str> = line[16..].trim().split('|').collect();
+                            if parts.len() >= 3 {
+                                let step = parts[0];
+                                let percent: i32 = parts[1].parse().unwrap_or(0);
+                                let msg = parts[2];
+                                let _ = app_handle.emit("bot-setup-progress", json!({
+                                    "step": step,
+                                    "percent": percent,
+                                    "message": msg
+                                }));
+                            }
+                        }
+                    }
+                }
+                let status = child.wait();
+                let success = status.map(|s| s.success()).unwrap_or(false);
+                let _ = app_handle.emit("bot-setup-finished", json!({
+                    "success": success
+                }));
+            }
+        }
+    });
+
+    Ok(json!({ "status": "started", "message": "Instalação do ambiente iniciada em segundo plano!" }))
+}
+
