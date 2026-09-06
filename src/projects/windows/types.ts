@@ -92,6 +92,7 @@ export interface StartMenuConfig {
   showPowerShortcuts: boolean;
   searchBarVisible: boolean;
   iconSize: "small" | "medium" | "large";
+  replaceNativeStartButton?: boolean;
 }
 
 export interface TaskbarConfig {

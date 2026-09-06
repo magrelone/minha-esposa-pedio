@@ -395,3 +395,64 @@ pub fn windows_get_power_status() -> Result<PowerStatusInfo, String> {
         })
     }
 }
+
+/// Alterna a visibilidade da janela pop-up do Menu Iniciar Híbrido (Win 7 + 11)
+#[tauri::command]
+pub fn windows_toggle_hybrid_start_menu(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri::Manager;
+
+    let win = app
+        .get_webview_window("startmenu")
+        .ok_or_else(|| "Janela startmenu não encontrada".to_string())?;
+
+    let is_visible = win.is_visible().unwrap_or(false);
+
+    if is_visible {
+        let _ = win.hide();
+        Ok(false)
+    } else {
+        // Posiciona no canto inferior esquerdo, acima da barra de tarefas
+        if let Ok(Some(mon)) = win.primary_monitor() {
+            let mon_size = mon.size();
+            let mon_pos = mon.position();
+            let _win_width = 660;
+            let win_height = 520;
+            let taskbar_height = 56;
+
+            let pos_x = mon_pos.x + 18;
+            let pos_y = mon_pos.y + (mon_size.height as i32) - win_height - taskbar_height;
+
+            let _ = win.set_position(tauri::PhysicalPosition::new(pos_x, pos_y));
+        }
+
+        let _ = win.show();
+        let _ = win.set_focus();
+        Ok(true)
+    }
+}
+
+/// Aplica configurações reais de recomendações e recentes no Start Menu do Windows
+#[tauri::command]
+pub fn windows_apply_start_menu_config(show_recent: bool, show_recommended: bool) -> Result<String, String> {
+    let recent_val = if show_recent { 1 } else { 0 };
+    let rec_val = if show_recommended { 1 } else { 0 };
+
+    let script = format!(
+        r#"
+        $adv = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        if (-not (Test-Path $adv)) {{ New-Item -Path $adv -Force | Out-Null }}
+        Set-ItemProperty -Path $adv -Name Start_TrackDocs -Value {} -Type DWord
+        Set-ItemProperty -Path $adv -Name Start_TrackProgs -Value {} -Type DWord
+
+        $start = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Start'
+        if (-not (Test-Path $start)) {{ New-Item -Path $start -Force | Out-Null }}
+        Set-ItemProperty -Path $start -Name ShowRecentList -Value {} -Type DWord -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path $start -Name ShowFrequentList -Value {} -Type DWord -ErrorAction SilentlyContinue
+        "#,
+        recent_val, rec_val, recent_val, rec_val
+    );
+
+    run_ps(&script)?;
+    Ok("Preferências do Menu Iniciar gravadas no Windows!".to_string())
+}
+

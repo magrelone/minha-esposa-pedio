@@ -2,22 +2,36 @@ import React, { useState } from "react";
 import {
   Search,
   Power,
-  Folder,
-  FileText,
-  Image,
-  Music,
-  Download,
-  Monitor,
-  Settings,
-  Sliders,
-  Activity,
-  Terminal,
   ChevronRight,
   Sparkles,
-  RotateCcw,
   Check,
 } from "lucide-react";
 import { useWindowsStore } from "../store/windowsStore";
+import {
+  AppBrandIcon,
+  EdgeIcon,
+  VSCodeIcon,
+  RobloxIcon,
+  DiscordIcon,
+  WhatsAppIcon,
+  NotepadIcon,
+  SnippingToolIcon,
+  CalculatorIcon,
+  ExplorerIcon,
+  SettingsIcon,
+  MicrosoftStoreIcon,
+  OutlookIcon,
+  XboxIcon,
+  PaintIcon,
+  LinkedInIcon,
+  ClockIcon,
+  ControlPanelIcon,
+  ThisPCIcon,
+  DocumentsFolderIcon,
+  PicturesFolderIcon,
+  MusicFolderIcon,
+  DownloadsFolderIcon,
+} from "./OfficialAppIcons";
 
 interface HybridStartMenuPreviewProps {
   onApplyStyle?: () => void;
@@ -28,18 +42,24 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
   const [searchTerm, setSearchTerm] = useState("");
   const [powerMenuOpen, setPowerMenuOpen] = useState(false);
 
-  // Lista inspirada no Windows 11 do usuário
+  // Lista fiel aos aplicativos oficiais do sistema e do usuário (sem emojis!)
   const pinnedApps = [
-    { name: "Pedi para meu marido 💕", icon: "💕", desc: "Central de Automação & Customização" },
-    { name: "Microsoft Edge", icon: "🌐", desc: "Navegador de Internet" },
-    { name: "Mozilla Firefox", icon: "🦊", desc: "Navegador Web" },
-    { name: "Visual Studio Code", icon: "💻", desc: "Editor de Código" },
-    { name: "Roblox Player", icon: "🎮", desc: "Jogos & Experiências" },
-    { name: "Discord", icon: "💬", desc: "Comunicação em Equipe" },
-    { name: "WhatsApp", icon: "📱", desc: "Mensagens & Chamadas" },
-    { name: "Bloco de Notas", icon: "📝", desc: "Anotações Rápidas" },
-    { name: "Calculadora", icon: "🔢", desc: "Utilitário de Cálculo" },
-    { name: "Ferramenta de Captura", icon: "✂️", desc: "Screenshots e Gravação" },
+    { name: "Pedi para meu marido 💕", icon: <AppBrandIcon size={26} />, desc: "Central de Automação & Customização" },
+    { name: "Microsoft Edge", icon: <EdgeIcon size={26} />, desc: "Navegador de Internet" },
+    { name: "Visual Studio Code", icon: <VSCodeIcon size={26} />, desc: "Editor de Código" },
+    { name: "Roblox Player", icon: <RobloxIcon size={26} />, desc: "Jogos & Experiências" },
+    { name: "Discord", icon: <DiscordIcon size={26} />, desc: "Comunicação em Equipe" },
+    { name: "WhatsApp", icon: <WhatsAppIcon size={26} />, desc: "Mensagens & Chamadas" },
+    { name: "Bloco de Notas", icon: <NotepadIcon size={26} />, desc: "Anotações Rápidas" },
+    { name: "Ferramenta de Captura", icon: <SnippingToolIcon size={26} />, desc: "Screenshots e Gravação" },
+    { name: "Explorador de Arquivos", icon: <ExplorerIcon size={26} />, desc: "Pastas e Documentos" },
+    { name: "Microsoft Store", icon: <MicrosoftStoreIcon size={26} />, desc: "Loja de Aplicativos" },
+    { name: "Xbox", icon: <XboxIcon size={26} />, desc: "Jogos e Comunidade" },
+    { name: "Paint", icon: <PaintIcon size={26} />, desc: "Edição e Desenho" },
+    { name: "Calculadora", icon: <CalculatorIcon size={26} />, desc: "Utilitário de Cálculo" },
+    { name: "Outlook", icon: <OutlookIcon size={26} />, desc: "Emails e Calendário" },
+    { name: "LinkedIn", icon: <LinkedInIcon size={26} />, desc: "Rede Profissional" },
+    { name: "Relógio", icon: <ClockIcon size={26} />, desc: "Alarmes e Temporizador" },
   ];
 
   const filteredApps = pinnedApps.filter((a) =>
@@ -47,7 +67,7 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
   );
 
   return (
-    <div className="relative w-full max-w-2xl mx-auto rounded-3xl overflow-hidden border border-white/20 shadow-2xl backdrop-blur-2xl bg-slate-900/85 text-white transition-all duration-300 select-none">
+    <div className="relative w-full max-w-2xl mx-auto rounded-3xl overflow-hidden border border-white/20 shadow-2xl backdrop-blur-2xl bg-slate-900/90 text-white transition-all duration-300 select-none">
       {/* Barra de Pesquisa no Topo (Windows 11 Fluent) */}
       <div className="p-4 border-b border-white/10 bg-white/5">
         <div className="relative flex items-center">
@@ -76,14 +96,14 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
               </span>
             </div>
 
-            <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1">
+            <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
               {filteredApps.map((app) => (
                 <button
                   key={app.name}
                   onClick={() => showNotification(`Iniciando ${app.name}... ✨`)}
                   className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 active:scale-[0.98] transition-all text-left group"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center text-base flex-shrink-0 group-hover:scale-110 transition-transform">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
                     {app.icon}
                   </div>
                   <div className="overflow-hidden">
@@ -117,7 +137,7 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
               onClick={() => showNotification("Abrindo pasta pessoal do usuário")}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-bold text-white transition-all text-left"
             >
-              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-pink-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-black">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-pink-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-black shadow-xs">
                 M
               </div>
               <span className="truncate">Maicon Christian</span>
@@ -125,12 +145,12 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
 
             <div className="my-1.5 border-t border-white/10" />
 
-            {/* Atalhos Clássicos que faltam no Windows 11 */}
+            {/* Atalhos Clássicos com Ícones Oficiais do Windows */}
             <button
               onClick={() => showNotification("Abrindo pasta Documentos")}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-medium text-white/90 hover:text-white transition-all text-left"
             >
-              <FileText size={15} className="text-pink-400" />
+              <DocumentsFolderIcon size={18} />
               <span>Documentos</span>
             </button>
 
@@ -138,7 +158,7 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
               onClick={() => showNotification("Abrindo pasta Imagens")}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-medium text-white/90 hover:text-white transition-all text-left"
             >
-              <Image size={15} className="text-blue-400" />
+              <PicturesFolderIcon size={18} />
               <span>Imagens</span>
             </button>
 
@@ -146,7 +166,7 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
               onClick={() => showNotification("Abrindo pasta Músicas")}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-medium text-white/90 hover:text-white transition-all text-left"
             >
-              <Music size={15} className="text-purple-400" />
+              <MusicFolderIcon size={18} />
               <span>Músicas</span>
             </button>
 
@@ -154,7 +174,7 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
               onClick={() => showNotification("Abrindo pasta Downloads")}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-medium text-white/90 hover:text-white transition-all text-left"
             >
-              <Download size={15} className="text-emerald-400" />
+              <DownloadsFolderIcon size={18} />
               <span>Downloads</span>
             </button>
 
@@ -164,7 +184,7 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
               onClick={() => showNotification("Abrindo Este Computador")}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-medium text-white/90 hover:text-white transition-all text-left"
             >
-              <Monitor size={15} className="text-cyan-400" />
+              <ThisPCIcon size={18} />
               <span>Este Computador</span>
             </button>
 
@@ -172,7 +192,7 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
               onClick={() => showNotification("Abrindo Painel de Controle Clássico")}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-medium text-white/90 hover:text-white transition-all text-left"
             >
-              <Sliders size={15} className="text-amber-400" />
+              <ControlPanelIcon size={18} />
               <span>Painel de Controle</span>
             </button>
 
@@ -180,7 +200,7 @@ export const HybridStartMenuPreview: React.FC<HybridStartMenuPreviewProps> = ({ 
               onClick={() => showNotification("Abrindo Configurações do Windows")}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-medium text-white/90 hover:text-white transition-all text-left"
             >
-              <Settings size={15} className="text-slate-300" />
+              <SettingsIcon size={18} />
               <span>Configurações</span>
             </button>
           </div>

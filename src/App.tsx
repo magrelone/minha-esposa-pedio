@@ -11,6 +11,7 @@ import { CrosshairApp } from "./projects/crosshair/CrosshairApp";
 import { BotsApp } from "./projects/bots/BotsApp";
 import { AutoClickApp } from "./projects/autoclick/AutoClickApp";
 import { WindowsApp } from "./projects/windows/WindowsApp";
+import { HybridStartMenuWindow } from "./projects/windows/views/HybridStartMenuWindow";
 import { OverlayApp } from "./overlay/OverlayApp";
 import { useCrosshairStore } from "./projects/crosshair/store/crosshairStore";
 import { invoke } from "@tauri-apps/api/core";
@@ -129,6 +130,11 @@ export const App: React.FC = () => {
   // If this window is the dedicated overlay window, render only the overlay canvas
   if (currentRoute === "/overlay") {
     return <OverlayApp />;
+  }
+
+  // If this window is the floating hybrid start menu popup
+  if (currentRoute === "/startmenu") {
+    return <HybridStartMenuWindow />;
   }
 
   const navigate = (route: string) => {

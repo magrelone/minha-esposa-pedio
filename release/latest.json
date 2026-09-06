@@ -1,8 +1,8 @@
 {
-    "version":  "1.1.0",
-    "notes":  "Novo Módulo Windows Customization Studio com personalização real testada e aprovada no Windows 10/11: Modo Escuro/Claro, Cores de Destaque, Barra de Tarefas com segundos e alinhamento, Explorer Compacto e Extensões, Wallpapers em alta definição com SystemParametersInfo e Interface Universal de Desfazer (Undo/Rollback)!",
-    "pub_date":  "2026-09-06T05:05:55.5480416Z",
-    "url":  "https://github.com/magrelone/minha-esposa-pedio/releases/download/v1.1.0/Pedi para meu marido_1.1.0_x64-setup.exe",
-    "fileName":  "Pedi para meu marido_1.1.0_x64-setup.exe",
-    "size":  3378125
+    "version":  "1.1.2",
+    "notes":  "Menu Iniciar Híbrido Flutuante (Win 7 + 11) com ícones oficiais em alta fidelidade, interceptação nativa da tecla Win/botão Iniciar (sem abrir 2 menus), e banco de wallpapers com filtros",
+    "pub_date":  "2026-09-06T05:46:05.1061961Z",
+    "url":  "https://github.com/magrelone/minha-esposa-pedio/releases/download/v1.1.2/Pedi para meu marido_1.1.2_x64-setup.exe",
+    "fileName":  "Pedi para meu marido_1.1.2_x64-setup.exe",
+    "size":  3394194
 }

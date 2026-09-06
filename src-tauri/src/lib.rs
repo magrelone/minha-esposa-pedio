@@ -16,6 +16,11 @@ use bot_manager::{
 mod autoclick_engine;
 mod autoclick_db;
 mod windows_customizer;
+mod start_menu_interceptor;
+use start_menu_interceptor::{
+    windows_set_start_menu_replacement,
+    windows_get_start_menu_replacement,
+};
 use windows_customizer::{
     windows_get_os_info,
     windows_safe_restart_explorer,
@@ -28,6 +33,8 @@ use windows_customizer::{
     windows_apply_taskbar_config,
     windows_apply_explorer_config,
     windows_apply_complete_preset,
+    windows_toggle_hybrid_start_menu,
+    windows_apply_start_menu_config,
 };
 use autoclick_engine::{AutoClickEngine, AutoClickEngineConfig, EngineStatus};
 use autoclick_db::{AutoClickDatabase, AutoClickRunRecord};
@@ -528,12 +535,26 @@ pub fn run() {
             windows_apply_taskbar_config,
             windows_apply_explorer_config,
             windows_apply_complete_preset,
+            windows_toggle_hybrid_start_menu,
+            windows_apply_start_menu_config,
+            windows_set_start_menu_replacement,
+            windows_get_start_menu_replacement,
         ])
 
         .setup(|app| {
+            // Inicializa interceptador do botão Iniciar para abrir o Menu Híbrido automaticamente
+            start_menu_interceptor::init_start_menu_interceptor(app.handle().clone());
+
             // Build system tray menu
             let toggle_app_i =
                 MenuItem::with_id(app, "toggle_app", "Abrir / Ocultar Central", true, None::<&str>)?;
+            let toggle_start_i = MenuItem::with_id(
+                app,
+                "toggle_start_menu",
+                "🚀 Abrir Menu Iniciar Híbrido (Ctrl+Alt+Z)",
+                true,
+                None::<&str>,
+            )?;
             let toggle_crosshair_i = MenuItem::with_id(
                 app,
                 "toggle_crosshair",
@@ -543,7 +564,7 @@ pub fn run() {
             )?;
             let quit_i = MenuItem::with_id(app, "quit", "Sair", true, None::<&str>)?;
 
-            let menu = Menu::with_items(app, &[&toggle_app_i, &toggle_crosshair_i, &quit_i])?;
+            let menu = Menu::with_items(app, &[&toggle_app_i, &toggle_start_i, &toggle_crosshair_i, &quit_i])?;
 
             let mut tray_builder = TrayIconBuilder::new()
                 .menu(&menu)
@@ -566,6 +587,9 @@ pub fn run() {
                                 let _ = win.set_focus();
                             }
                         }
+                    }
+                    "toggle_start_menu" => {
+                        let _ = windows_toggle_hybrid_start_menu(app.clone());
                     }
                     "toggle_crosshair" => {
                         let _ = toggle_overlay(app.clone());
@@ -672,11 +696,27 @@ pub fn run() {
                 }
             }
 
+            // Atalho Global para abrir o Menu Iniciar Híbrido: Control+Alt+Z
+            if let Ok(sc) = "Control+Alt+Z".parse::<Shortcut>() {
+                let ah = app.handle().clone();
+                let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        let _ = windows_toggle_hybrid_start_menu(ah.clone());
+                    }
+                });
+                let _ = app.global_shortcut().register(sc);
+            }
+
             Ok(())
         })
 
 
         .on_window_event(|window, event| {
+            if window.label() == "startmenu" {
+                if let tauri::WindowEvent::Focused(false) = event {
+                    let _ = window.hide();
+                }
+            }
             if window.label() == "main" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     if MINIMIZE_TO_TRAY.load(Ordering::SeqCst) {

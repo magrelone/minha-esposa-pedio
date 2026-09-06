@@ -28,13 +28,14 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
 };
 
 export const DEFAULT_START_MENU: StartMenuConfig = {
-  layout: "windows11",
-  alignment: "center",
+  layout: "hybrid_win7_11",
+  alignment: "left",
   showRecentFiles: false,
   showRecommended: false,
   showPowerShortcuts: true,
   searchBarVisible: true,
   iconSize: "medium",
+  replaceNativeStartButton: true,
 };
 
 export const DEFAULT_TASKBAR: TaskbarConfig = {
@@ -141,7 +142,7 @@ interface WindowsState {
 
   applyPreset: (presetId: string, title: string) => Promise<void>;
   updateAppearance: (newConfig: Partial<AppearanceConfig>, title?: string) => Promise<void>;
-  updateStartMenu: (newConfig: Partial<StartMenuConfig>, title?: string) => void;
+  updateStartMenu: (newConfig: Partial<StartMenuConfig>, title?: string) => Promise<void>;
   updateTaskbar: (newConfig: Partial<TaskbarConfig>, title?: string) => Promise<void>;
   updateExplorer: (newConfig: Partial<ExplorerConfig>, title?: string) => Promise<void>;
   updateWallpaper: (newConfig: Partial<WallpaperConfig>, title?: string) => Promise<void>;
@@ -280,11 +281,45 @@ export const useWindowsStore = create<WindowsState>((set, get) => {
       get().showNotification(`✨ ${title}`);
     },
 
-    updateStartMenu: (newConfig, title = "Menu Iniciar Atualizado") => {
+    updateStartMenu: async (newConfig, title = "Menu Iniciar Atualizado") => {
       const prev = get().startMenu;
       const updated = { ...prev, ...newConfig };
       undoService.recordChange("start_menu", title, "Configurações do Start Menu", prev, updated, true);
       set({ startMenu: updated });
+
+      try {
+        await invoke("windows_apply_start_menu_config", {
+          showRecent: updated.showRecentFiles,
+          showRecommended: updated.showRecommended,
+        });
+
+        // Se escolher clássico (Win 7 ou Win 10), move o menu nativo para a esquerda
+        if (newConfig.layout === "windows7" || newConfig.layout === "windows10") {
+          await invoke("windows_apply_taskbar_config", {
+            alignment: "left",
+            showSeconds: get().taskbar.showSecondsInClock,
+            searchVisible: get().taskbar.showSearch,
+          });
+          set((s) => ({ taskbar: { ...s.taskbar, alignment: "left" } }));
+        } else if (newConfig.layout === "windows11") {
+          await invoke("windows_apply_taskbar_config", {
+            alignment: "center",
+            showSeconds: get().taskbar.showSecondsInClock,
+            searchVisible: get().taskbar.showSearch,
+          });
+          set((s) => ({ taskbar: { ...s.taskbar, alignment: "center" } }));
+          await invoke("windows_set_start_menu_replacement", { enabled: false });
+        } else if (newConfig.layout === "hybrid_win7_11") {
+          await invoke("windows_set_start_menu_replacement", { enabled: true });
+        }
+
+        if (newConfig.replaceNativeStartButton !== undefined) {
+          await invoke("windows_set_start_menu_replacement", { enabled: newConfig.replaceNativeStartButton });
+        }
+      } catch (e) {
+        console.warn("Falha ao aplicar configurações de Start Menu:", e);
+      }
+
       get().showNotification(`🚀 ${title}`);
     },
 
