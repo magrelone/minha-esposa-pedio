@@ -17,7 +17,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 export const DEFAULT_APPEARANCE: AppearanceConfig = {
   mode: "dark",
-  accentColor: "#ec4899", // Rosa vibrante carinhoso
+  accentColor: "#ec4899", // Rosa carinhoso
   transparency: true,
   opacity: 85,
   useMica: true,
@@ -139,10 +139,11 @@ interface WindowsState {
   setActiveCategory: (cat: CustomizationCategory) => void;
   showNotification: (msg: string) => void;
 
-  updateAppearance: (newConfig: Partial<AppearanceConfig>, title?: string) => void;
+  applyPreset: (presetId: string, title: string) => Promise<void>;
+  updateAppearance: (newConfig: Partial<AppearanceConfig>, title?: string) => Promise<void>;
   updateStartMenu: (newConfig: Partial<StartMenuConfig>, title?: string) => void;
-  updateTaskbar: (newConfig: Partial<TaskbarConfig>, title?: string) => void;
-  updateExplorer: (newConfig: Partial<ExplorerConfig>, title?: string) => void;
+  updateTaskbar: (newConfig: Partial<TaskbarConfig>, title?: string) => Promise<void>;
+  updateExplorer: (newConfig: Partial<ExplorerConfig>, title?: string) => Promise<void>;
   updateWallpaper: (newConfig: Partial<WallpaperConfig>, title?: string) => Promise<void>;
   updateSound: (newConfig: Partial<SoundConfig>, title?: string) => void;
   updateCursor: (newConfig: Partial<CursorConfig>, title?: string) => void;
@@ -156,7 +157,6 @@ interface WindowsState {
 }
 
 export const useWindowsStore = create<WindowsState>((set, get) => {
-  // Inicialização com listeners de histórico
   undoService.subscribe(() => {
     set({ changeHistoryCount: undoService.getChangeCount() });
   });
@@ -181,8 +181,15 @@ export const useWindowsStore = create<WindowsState>((set, get) => {
       try {
         const info = await invoke<WindowsOsInfo>("windows_get_os_info");
         set({ osInfo: info });
+        if (info.current_theme_is_dark !== undefined) {
+          set((s) => ({
+            appearance: {
+              ...s.appearance,
+              mode: info.current_theme_is_dark ? "dark" : "light",
+            },
+          }));
+        }
       } catch (e) {
-        // Fallback para preview no navegador
         set({
           osInfo: {
             os_name: "Windows 11",
@@ -206,11 +213,70 @@ export const useWindowsStore = create<WindowsState>((set, get) => {
       setTimeout(() => set({ notificationMessage: null }), 3500);
     },
 
-    updateAppearance: (newConfig, title = "Aparência Atualizada") => {
+    applyPreset: async (presetId: string, title: string) => {
+      set({ isApplying: true });
+      const prev = {
+        appearance: get().appearance,
+        taskbar: get().taskbar,
+        wallpaper: get().wallpaper,
+      };
+
+      try {
+        await invoke("windows_apply_complete_preset", { presetId });
+        undoService.recordChange("quick", title, "Preset completo aplicado no Windows", prev, presetId, false);
+
+        if (presetId === "cute_pink") {
+          set((s) => ({
+            appearance: { ...s.appearance, mode: "dark", accentColor: "#ec4899" },
+            taskbar: { ...s.taskbar, alignment: "center", showSecondsInClock: true },
+          }));
+        } else if (presetId === "win11_fluent") {
+          set((s) => ({
+            appearance: { ...s.appearance, mode: "dark", accentColor: "#0078d4" },
+            taskbar: { ...s.taskbar, alignment: "center", showSecondsInClock: true },
+          }));
+        } else if (presetId === "win10_classic") {
+          set((s) => ({
+            appearance: { ...s.appearance, mode: "dark", accentColor: "#0284c7" },
+            taskbar: { ...s.taskbar, alignment: "left", showSecondsInClock: false },
+          }));
+        } else if (presetId === "win7_aero") {
+          set((s) => ({
+            appearance: { ...s.appearance, mode: "light", accentColor: "#0ea5e9" },
+            taskbar: { ...s.taskbar, alignment: "left", showSecondsInClock: false },
+          }));
+        } else if (presetId === "cyberpunk_neon") {
+          set((s) => ({
+            appearance: { ...s.appearance, mode: "dark", accentColor: "#eab308" },
+            taskbar: { ...s.taskbar, alignment: "center", showSecondsInClock: true },
+          }));
+        }
+
+        get().showNotification(`✨ ${title}`);
+      } catch (e) {
+        console.error("Erro ao aplicar preset:", e);
+        get().showNotification(`Erro ao aplicar preset: ${e}`);
+      } finally {
+        set({ isApplying: false });
+      }
+    },
+
+    updateAppearance: async (newConfig, title = "Aparência Atualizada") => {
       const prev = get().appearance;
       const updated = { ...prev, ...newConfig };
-      undoService.recordChange("appearance", title, "Alteração de tema e cores", prev, updated, false);
+      undoService.recordChange("appearance", title, "Tema e cores do Windows", prev, updated, false);
       set({ appearance: updated });
+
+      try {
+        if (newConfig.mode) {
+          await invoke("windows_apply_theme_mode", { mode: newConfig.mode });
+        }
+        if (newConfig.accentColor) {
+          await invoke("windows_apply_accent_color", { hexColor: newConfig.accentColor });
+        }
+      } catch (e) {
+        console.warn("Falha na chamada nativa de aparência:", e);
+      }
       get().showNotification(`✨ ${title}`);
     },
 
@@ -222,32 +288,54 @@ export const useWindowsStore = create<WindowsState>((set, get) => {
       get().showNotification(`🚀 ${title}`);
     },
 
-    updateTaskbar: (newConfig, title = "Barra de Tarefas Atualizada") => {
+    updateTaskbar: async (newConfig, title = "Barra de Tarefas Atualizada") => {
       const prev = get().taskbar;
       const updated = { ...prev, ...newConfig };
-      undoService.recordChange("taskbar", title, "Alinhamento e transparência da barra", prev, updated, true);
+      undoService.recordChange("taskbar", title, "Alinhamento e relógio da barra", prev, updated, true);
       set({ taskbar: updated });
+
+      try {
+        await invoke("windows_apply_taskbar_config", {
+          alignment: updated.alignment,
+          showSeconds: updated.showSecondsInClock,
+          searchVisible: updated.showSearch,
+        });
+      } catch (e) {
+        console.warn("Falha na chamada nativa da barra:", e);
+      }
       get().showNotification(`📌 ${title}`);
     },
 
-    updateExplorer: (newConfig, title = "Explorer Atualizado") => {
+    updateExplorer: async (newConfig, title = "Explorer Atualizado") => {
       const prev = get().explorer;
       const updated = { ...prev, ...newConfig };
-      undoService.recordChange("explorer", title, "Exibição e organização do Explorer", prev, updated, true);
+      undoService.recordChange("explorer", title, "Configurações de pastas e arquivos", prev, updated, true);
       set({ explorer: updated });
+
+      try {
+        await invoke("windows_apply_explorer_config", {
+          compactView: updated.compactView,
+          showExtensions: updated.showFileExtensions,
+          showHidden: updated.showHiddenFiles,
+        });
+      } catch (e) {
+        console.warn("Falha na chamada nativa do explorer:", e);
+      }
       get().showNotification(`📁 ${title}`);
     },
 
     updateWallpaper: async (newConfig, title = "Papel de Parede Alterado") => {
       const prev = get().wallpaper;
       const updated = { ...prev, ...newConfig };
-      undoService.recordChange("wallpapers", title, "Mudança de wallpaper estático/animado", prev, updated, false);
+      undoService.recordChange("wallpapers", title, "Papel de parede aplicado", prev, updated, false);
       set({ wallpaper: updated });
 
       if (updated.wallpaperPath && !updated.isLive) {
         try {
-          await invoke("windows_set_desktop_wallpaper", { path: updated.wallpaperPath });
-        } catch {}
+          await invoke("windows_set_desktop_wallpaper", { pathOrUrl: updated.wallpaperPath });
+        } catch (e) {
+          console.warn("Falha ao definir wallpaper nativo:", e);
+        }
       }
       get().showNotification(`🖼️ ${title}`);
     },
@@ -275,36 +363,87 @@ export const useWindowsStore = create<WindowsState>((set, get) => {
       set({ widgets: updated });
     },
 
-    // Executa a reversão restaurando o estado exato
+    // Executa a reversão restaurando o estado exato no Windows
     undoSpecificChange: async (changeId: string) => {
       const success = await undoService.undoChange(changeId, async (cat, prevState) => {
         switch (cat) {
+          case "quick":
+            if (prevState.appearance) {
+              set({ appearance: prevState.appearance });
+              try {
+                await invoke("windows_apply_theme_mode", { mode: prevState.appearance.mode });
+                await invoke("windows_apply_accent_color", { hexColor: prevState.appearance.accentColor });
+              } catch {}
+            }
+            if (prevState.taskbar) {
+              set({ taskbar: prevState.taskbar });
+              try {
+                await invoke("windows_apply_taskbar_config", {
+                  alignment: prevState.taskbar.alignment,
+                  showSeconds: prevState.taskbar.showSecondsInClock,
+                  searchVisible: prevState.taskbar.showSearch,
+                });
+              } catch {}
+            }
+            if (prevState.wallpaper && prevState.wallpaper.wallpaperPath) {
+              set({ wallpaper: prevState.wallpaper });
+              try {
+                await invoke("windows_set_desktop_wallpaper", { pathOrUrl: prevState.wallpaper.wallpaperPath });
+              } catch {}
+            }
+            break;
+
           case "appearance":
             set({ appearance: prevState });
+            try {
+              if (prevState.mode) await invoke("windows_apply_theme_mode", { mode: prevState.mode });
+              if (prevState.accentColor) await invoke("windows_apply_accent_color", { hexColor: prevState.accentColor });
+            } catch {}
             break;
+
           case "start_menu":
             set({ startMenu: prevState });
             break;
+
           case "taskbar":
             set({ taskbar: prevState });
+            try {
+              await invoke("windows_apply_taskbar_config", {
+                alignment: prevState.alignment,
+                showSeconds: prevState.showSecondsInClock,
+                searchVisible: prevState.showSearch,
+              });
+            } catch {}
             break;
+
           case "explorer":
             set({ explorer: prevState });
+            try {
+              await invoke("windows_apply_explorer_config", {
+                compactView: prevState.compactView,
+                showExtensions: prevState.showFileExtensions,
+                showHidden: prevState.showHiddenFiles,
+              });
+            } catch {}
             break;
+
           case "wallpapers":
             set({ wallpaper: prevState });
             if (prevState.wallpaperPath) {
               try {
-                await invoke("windows_set_desktop_wallpaper", { path: prevState.wallpaperPath });
+                await invoke("windows_set_desktop_wallpaper", { pathOrUrl: prevState.wallpaperPath });
               } catch {}
             }
             break;
+
           case "sounds":
             set({ sound: prevState });
             break;
+
           case "cursors":
             set({ cursor: prevState });
             break;
+
           case "widgets":
             set({ widgets: prevState });
             break;
@@ -312,7 +451,7 @@ export const useWindowsStore = create<WindowsState>((set, get) => {
       });
 
       if (success) {
-        get().showNotification("↩️ Alteração desfeita com sucesso!");
+        get().showNotification("↩️ Alteração desfeita com sucesso no Windows!");
       }
       return success;
     },
@@ -330,15 +469,33 @@ export const useWindowsStore = create<WindowsState>((set, get) => {
     revertCategoryToDefault: async (cat) => {
       switch (cat) {
         case "appearance":
+          try {
+            await invoke("windows_apply_theme_mode", { mode: "dark" });
+            await invoke("windows_apply_accent_color", { hexColor: "#0078d4" });
+          } catch {}
           get().updateAppearance(DEFAULT_APPEARANCE, "Restaurado Aparência Original");
           break;
         case "start_menu":
           get().updateStartMenu(DEFAULT_START_MENU, "Restaurado Start Menu Original");
           break;
         case "taskbar":
+          try {
+            await invoke("windows_apply_taskbar_config", {
+              alignment: "center",
+              showSeconds: true,
+              searchVisible: true,
+            });
+          } catch {}
           get().updateTaskbar(DEFAULT_TASKBAR, "Restaurado Barra de Tarefas Original");
           break;
         case "explorer":
+          try {
+            await invoke("windows_apply_explorer_config", {
+              compactView: false,
+              showExtensions: true,
+              showHidden: false,
+            });
+          } catch {}
           get().updateExplorer(DEFAULT_EXPLORER, "Restaurado Explorer Original");
           break;
         case "wallpapers":
@@ -363,8 +520,15 @@ export const useWindowsStore = create<WindowsState>((set, get) => {
     restoreAllToDefaults: async () => {
       set({ isApplying: true });
       try {
+        await invoke("windows_apply_theme_mode", { mode: "dark" });
+        await invoke("windows_apply_accent_color", { hexColor: "#0078d4" });
+        await invoke("windows_apply_taskbar_config", { alignment: "center", showSeconds: true, searchVisible: true });
+        await invoke("windows_apply_explorer_config", { compactView: false, showExtensions: true, showHidden: false });
         await invoke("windows_restore_default_wallpaper");
-      } catch {}
+      } catch (e) {
+        console.warn("Erro ao restaurar defaults nativos:", e);
+      }
+
       set({
         appearance: DEFAULT_APPEARANCE,
         startMenu: DEFAULT_START_MENU,
@@ -376,10 +540,12 @@ export const useWindowsStore = create<WindowsState>((set, get) => {
         widgets: DEFAULT_WIDGETS,
         isApplying: false,
       });
+
       try {
         await invoke("windows_safe_restart_explorer");
       } catch {}
-      get().showNotification("🛡️ Emergency Recovery: Todo o sistema foi restaurado aos padrões seguros!");
+
+      get().showNotification("🛡️ Emergency Recovery: Todo o Windows foi restaurado aos padrões seguros!");
     },
   };
 });

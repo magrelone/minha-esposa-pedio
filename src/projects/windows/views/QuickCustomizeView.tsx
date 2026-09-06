@@ -17,12 +17,7 @@ interface PresetItem {
 
 export const QuickCustomizeView: React.FC = () => {
   const {
-    updateAppearance,
-    updateTaskbar,
-    updateStartMenu,
-    updateWallpaper,
-    updateSound,
-    updateCursor,
+    applyPreset,
     undoLastChange,
     showNotification,
   } = useWindowsStore();
@@ -38,18 +33,7 @@ export const QuickCustomizeView: React.FC = () => {
       gradient: "from-pink-500/20 via-rose-400/10 to-transparent",
       previewUrl: "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=500&auto=format&fit=crop&q=80",
       applyAction: () => {
-        updateAppearance(
-          { mode: "dark", accentColor: "#ec4899", transparency: true, opacity: 90 },
-          "Preset: Cute Pink Dream 💕"
-        );
-        updateTaskbar({ alignment: "center", transparencyMode: "blur", showSecondsInClock: true });
-        updateStartMenu({ layout: "windows11", alignment: "center" });
-        updateWallpaper({
-          activeWallpaperId: "cute_pink_preset",
-          wallpaperPath: "C:\\Wallpapers\\CutePink.jpg",
-          fitMode: "fill",
-        });
-        showNotification("💕 Preset Cute Pink Dream aplicado com amor!");
+        applyPreset("cute_pink", "Cute Pink Dream 💕");
       },
     },
     {
@@ -62,12 +46,7 @@ export const QuickCustomizeView: React.FC = () => {
       gradient: "from-blue-500/20 via-sky-400/10 to-transparent",
       previewUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=80",
       applyAction: () => {
-        updateAppearance(
-          { mode: "dark", accentColor: "#3b82f6", useMica: true, roundedCorners: true },
-          "Preset: Windows 11 Fluent"
-        );
-        updateTaskbar({ alignment: "center", transparencyMode: "blur" });
-        updateStartMenu({ layout: "windows11", alignment: "center" });
+        applyPreset("win11_fluent", "Windows 11 Fluent Clean");
       },
     },
     {
@@ -80,12 +59,7 @@ export const QuickCustomizeView: React.FC = () => {
       gradient: "from-cyan-500/20 via-blue-400/10 to-transparent",
       previewUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500&auto=format&fit=crop&q=80",
       applyAction: () => {
-        updateAppearance(
-          { mode: "dark", accentColor: "#0284c7", roundedCorners: false },
-          "Preset: Windows 10 Clássico"
-        );
-        updateTaskbar({ alignment: "left", transparencyMode: "acrylic" });
-        updateStartMenu({ layout: "windows10", alignment: "left" });
+        applyPreset("win10_classic", "Windows 10 Nostalgia");
       },
     },
     {
@@ -98,12 +72,7 @@ export const QuickCustomizeView: React.FC = () => {
       gradient: "from-teal-500/20 via-sky-400/10 to-transparent",
       previewUrl: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=500&auto=format&fit=crop&q=80",
       applyAction: () => {
-        updateAppearance(
-          { mode: "light", accentColor: "#0ea5e9", transparency: true, opacity: 75 },
-          "Preset: Windows 7 Aero Glass"
-        );
-        updateTaskbar({ alignment: "left", transparencyMode: "acrylic" });
-        updateStartMenu({ layout: "windows7", alignment: "left" });
+        applyPreset("win7_aero", "Windows 7 Aero Glass");
       },
     },
     {
@@ -116,13 +85,7 @@ export const QuickCustomizeView: React.FC = () => {
       gradient: "from-emerald-500/20 via-green-400/10 to-transparent",
       previewUrl: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=500&auto=format&fit=crop&q=80",
       applyAction: () => {
-        updateAppearance(
-          { mode: "light", accentColor: "#2563eb", roundedCorners: false },
-          "Preset: Windows XP Luna"
-        );
-        updateTaskbar({ alignment: "left", position: "bottom" });
-        updateStartMenu({ layout: "windows7", alignment: "left" });
-        updateSound({ activePackId: "xp_classic", packName: "Windows XP Clássico" });
+        applyPreset("win10_classic", "Windows XP Bliss Luna");
       },
     },
     {
@@ -135,11 +98,7 @@ export const QuickCustomizeView: React.FC = () => {
       gradient: "from-yellow-500/20 via-amber-400/10 to-transparent",
       previewUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=80",
       applyAction: () => {
-        updateAppearance(
-          { mode: "dark", accentColor: "#eab308", transparency: true, opacity: 80 },
-          "Preset: Cyberpunk Neon"
-        );
-        updateTaskbar({ alignment: "center", transparencyMode: "acrylic" });
+        applyPreset("cyberpunk_neon", "Cyberpunk 2077 Neon");
       },
     },
   ];

@@ -23,6 +23,11 @@ use windows_customizer::{
     windows_set_desktop_wallpaper,
     windows_restore_default_wallpaper,
     windows_get_power_status,
+    windows_apply_theme_mode,
+    windows_apply_accent_color,
+    windows_apply_taskbar_config,
+    windows_apply_explorer_config,
+    windows_apply_complete_preset,
 };
 use autoclick_engine::{AutoClickEngine, AutoClickEngineConfig, EngineStatus};
 use autoclick_db::{AutoClickDatabase, AutoClickRunRecord};
@@ -518,6 +523,11 @@ pub fn run() {
             windows_set_desktop_wallpaper,
             windows_restore_default_wallpaper,
             windows_get_power_status,
+            windows_apply_theme_mode,
+            windows_apply_accent_color,
+            windows_apply_taskbar_config,
+            windows_apply_explorer_config,
+            windows_apply_complete_preset,
         ])
 
         .setup(|app| {
