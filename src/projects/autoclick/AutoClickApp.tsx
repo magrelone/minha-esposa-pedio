@@ -77,7 +77,7 @@ export const AutoClickApp: React.FC = () => {
     const keyToRegister = hotkeyStartStop || "Insert";
     InputService.registerHotkey(keyToRegister).catch(() => {});
 
-    if (hotkeyEmergencyStop) {
+    if (hotkeyEmergencyStop && hotkeyEmergencyStop.toUpperCase() !== "ESC" && hotkeyEmergencyStop.toUpperCase() !== "ESCAPE") {
       InputService.registerEmergencyHotkey(hotkeyEmergencyStop).catch(() => {});
     }
 
@@ -107,9 +107,10 @@ export const AutoClickApp: React.FC = () => {
         return;
       }
 
-      const emergencyKey = (hotkeyEmergencyStop || "ESC").toUpperCase();
+      const emergencyKey = (hotkeyEmergencyStop || "Shift+Escape").toUpperCase();
+      const isShiftEscape = e.shiftKey && (e.key === "Escape" || e.code === "Escape");
       const isEmergencyMatch =
-        (emergencyKey === "ESC" && (e.key === "Escape" || e.code === "Escape")) ||
+        isShiftEscape ||
         pressedKey === emergencyKey;
 
       if (isEmergencyMatch && isRunning) {

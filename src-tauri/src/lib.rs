@@ -201,6 +201,11 @@ fn hide_main_window(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn register_custom_hotkey(app: AppHandle, key: String) -> Result<(), String> {
+    let key_upper = key.trim().to_uppercase();
+    if key_upper == "ESC" || key_upper == "ESCAPE" {
+        return Ok(());
+    }
+
     if let Ok(sc) = key.parse::<Shortcut>() {
         let ah = app.clone();
         let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
@@ -215,6 +220,11 @@ fn register_custom_hotkey(app: AppHandle, key: String) -> Result<(), String> {
 
 #[tauri::command]
 fn autoclick_register_hotkey(app: AppHandle, key: String) -> Result<(), String> {
+    let key_upper = key.trim().to_uppercase();
+    if key_upper == "ESC" || key_upper == "ESCAPE" {
+        return Ok(());
+    }
+
     if let Ok(sc) = key.parse::<Shortcut>() {
         let ah = app.clone();
         let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
@@ -237,6 +247,13 @@ fn autoclick_register_hotkey(app: AppHandle, key: String) -> Result<(), String> 
 
 #[tauri::command]
 fn autoclick_register_emergency_hotkey(app: AppHandle, key: String) -> Result<(), String> {
+    let key_upper = key.trim().to_uppercase();
+    // NUNCA registrar ESC/ESCAPE isolado globalmente: no Windows, RegisterHotKey consome
+    // a tecla exclusivamente em nível de SO, impedindo qualquer jogo de receber o ESC!
+    if key_upper == "ESC" || key_upper == "ESCAPE" {
+        return Ok(());
+    }
+
     if let Ok(sc) = key.parse::<Shortcut>() {
         let ah = app.clone();
         let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
@@ -579,8 +596,8 @@ pub fn run() {
                 let _ = app.global_shortcut().register(sc);
             }
 
-            // Register Emergency Stop Shortcut: "Escape" (only stops if running)
-            if let Ok(sc) = "Escape".parse::<Shortcut>() {
+            // Register Emergency Stop Shortcut: "Shift+Escape" (não bloqueia o ESC isolado nos jogos)
+            if let Ok(sc) = "Shift+Escape".parse::<Shortcut>() {
                 let ah = app.handle().clone();
                 let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
                     if event.state() == ShortcutState::Pressed {

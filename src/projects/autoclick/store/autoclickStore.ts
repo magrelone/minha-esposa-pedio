@@ -346,19 +346,24 @@ export const useAutoClickStore = create<AutoClickState>()(
         set((s) => ({ keyClickers: s.keyClickers.filter((_, i) => i !== idx) })),
 
       hotkeyStartStop: "Insert",
-      hotkeyEmergencyStop: "ESC",
+      hotkeyEmergencyStop: "Shift+Escape",
       hotkeyPickPosition: "F7",
       setHotkeys: (updates) => {
+        const cleanEmergency =
+          updates.emergency && (updates.emergency.toUpperCase() === "ESC" || updates.emergency.toUpperCase() === "ESCAPE")
+            ? "Shift+Escape"
+            : updates.emergency;
+
         set((s) => ({
           hotkeyStartStop: updates.startStop ?? s.hotkeyStartStop,
-          hotkeyEmergencyStop: updates.emergency ?? s.hotkeyEmergencyStop,
+          hotkeyEmergencyStop: cleanEmergency ?? s.hotkeyEmergencyStop,
           hotkeyPickPosition: updates.pick ?? s.hotkeyPickPosition,
         }));
         if (updates.startStop) {
           InputService.registerHotkey(updates.startStop);
         }
-        if (updates.emergency) {
-          InputService.registerEmergencyHotkey(updates.emergency);
+        if (cleanEmergency) {
+          InputService.registerEmergencyHotkey(cleanEmergency);
         }
       },
       cornerFailsafe: true,
@@ -655,6 +660,24 @@ export const useAutoClickStore = create<AutoClickState>()(
         history: state.history,
         totalLifetimeClicks: state.totalLifetimeClicks,
       }),
+      version: 2,
+      migrate: (persistedState: any, _version: number) => {
+        if (persistedState) {
+          const rawEmergency = persistedState.hotkeyEmergencyStop;
+          if (!rawEmergency || rawEmergency === "ESC" || rawEmergency === "Escape") {
+            persistedState.hotkeyEmergencyStop = "Shift+Escape";
+          }
+        }
+        return persistedState;
+      },
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          const rawEmergency = state.hotkeyEmergencyStop;
+          if (!rawEmergency || rawEmergency === "ESC" || rawEmergency === "Escape") {
+            state.hotkeyEmergencyStop = "Shift+Escape";
+          }
+        }
+      },
     }
   )
 );

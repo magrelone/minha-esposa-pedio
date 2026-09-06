@@ -170,7 +170,7 @@ export const QuickClickView: React.FC<{ onOpenPicker: () => void }> = ({ onOpenP
 
               <button
                 onClick={() => emergencyStop()}
-                title={`Parada de Emergência (${hotkeyEmergencyStop || "ESC"})`}
+                title={`Parada de Emergência (${hotkeyEmergencyStop || "Shift+ESC"})`}
                 className="p-2 rounded-xl bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white transition-all"
               >
                 <ShieldAlert size={14} />

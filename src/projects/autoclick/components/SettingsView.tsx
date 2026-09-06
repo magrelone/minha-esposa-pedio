@@ -31,14 +31,17 @@ export const SettingsView: React.FC = () => {
 
   const [editingKey, setEditingKey] = useState<string | null>(null);
 
-  const handleSetKey = async (type: "startStop" | "emergency" | "pick", val: string) => {
-    const upper = val.toUpperCase().trim();
-    if (!upper) return;
+  const handleSetKey = (type: "startStop" | "emergency" | "pick", val: string) => {
+    let cleanVal = val.trim();
+    if (!cleanVal) return;
 
-    await HotkeyService.register(upper);
-    if (type === "startStop") setHotkeys({ startStop: upper });
-    if (type === "emergency") setHotkeys({ emergency: upper });
-    if (type === "pick") setHotkeys({ pick: upper });
+    if (type === "emergency" && (cleanVal.toUpperCase() === "ESC" || cleanVal.toUpperCase() === "ESCAPE")) {
+      cleanVal = "Shift+Escape";
+    }
+
+    if (type === "startStop") setHotkeys({ startStop: cleanVal });
+    if (type === "emergency") setHotkeys({ emergency: cleanVal });
+    if (type === "pick") setHotkeys({ pick: cleanVal });
     setEditingKey(null);
   };
 
@@ -87,14 +90,15 @@ export const SettingsView: React.FC = () => {
               <span className="font-bold text-theme-text text-red-500 flex items-center gap-1">
                 <ShieldAlert size={14} /> Parada de Pânico
               </span>
-              <span className="text-[10px] text-theme-text-muted">Cancela fila e solta todas as teclas</span>
+              <span className="text-[10px] text-theme-text-muted">Cancela fila e solta teclas (Shift+ESC)</span>
             </div>
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={hotkeyEmergencyStop}
+                placeholder="Shift+Escape"
                 onChange={(e) => handleSetKey("emergency", e.target.value)}
-                className="w-24 p-1.5 rounded-xl bg-theme-surface border border-theme-border/60 font-mono font-bold text-center text-xs text-red-500 focus:outline-none"
+                className="w-28 p-1.5 rounded-xl bg-theme-surface border border-theme-border/60 font-mono font-bold text-center text-xs text-red-500 focus:outline-none"
               />
               <span className="text-[10px] text-theme-text-muted">Panic Key</span>
             </div>

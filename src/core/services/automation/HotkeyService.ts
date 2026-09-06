@@ -5,6 +5,9 @@ export class HotkeyService {
 
   static async register(keyCombination: string, _callback?: () => void): Promise<boolean> {
     const normalized = keyCombination.trim().toUpperCase();
+    if (normalized === "ESC" || normalized === "ESCAPE") {
+      return false;
+    }
     if (this.registeredKeys.has(normalized)) {
       console.warn(`[HotkeyService] Atalho ${normalized} já registrado.`);
     }
