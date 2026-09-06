@@ -14,6 +14,11 @@ import {
   Compass,
   Repeat,
   Timer,
+  Brain,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
+  Key,
 } from "lucide-react";
 import { useBotsStore } from "../store/botsStore";
 import { BOT_REGISTRY } from "../core/BotRegistry";
@@ -31,6 +36,13 @@ export const BotConfigModal: React.FC = () => {
     setScreenSelectorOpen,
   } = useBotsStore();
 
+  const [geminiKey, setGeminiKey] = React.useState<string>(() => {
+    return typeof localStorage !== "undefined" ? (localStorage.getItem("pmm_gemini_api_key") || "") : "";
+  });
+  const [isEditingKey, setIsEditingKey] = React.useState(false);
+  const [keyInput, setKeyInput] = React.useState("");
+  const [keySavedMessage, setKeySavedMessage] = React.useState(false);
+
   if (!configModalBotId) return null;
 
   const bot = BOT_REGISTRY.find((b) => b.id === configModalBotId);
@@ -41,6 +53,17 @@ export const BotConfigModal: React.FC = () => {
   const closeModal = () => setConfigModalBotId(null);
   const isHanami = configModalBotId === "roblox-hanami-spirit-collector";
   const isRunning = botStatus[configModalBotId] === "running";
+
+  const saveGeminiKey = (newKey: string) => {
+    const trimmed = newKey.trim();
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("pmm_gemini_api_key", trimmed);
+    }
+    setGeminiKey(trimmed);
+    setIsEditingKey(false);
+    setKeySavedMessage(true);
+    setTimeout(() => setKeySavedMessage(false), 3000);
+  };
 
   const patchConfig = (partial: Partial<BotConfig>) => {
     if (isRunning) {
@@ -81,6 +104,108 @@ export const BotConfigModal: React.FC = () => {
 
         {/* Modal Body */}
         <div className="flex flex-col gap-5 text-xs">
+          {/* Dica de Ouro de Jogabilidade: Câmera em 1ª Pessoa */}
+          {isHanami && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3.5 text-amber-700 dark:text-amber-300 shadow-sm">
+              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-500 shrink-0 mt-0.5">
+                <Eye size={18} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-xs">💡 Dica de Ouro: Jogue em 1ª Pessoa (Scroll do mouse)</span>
+                <span className="text-[11px] leading-relaxed text-theme-text-muted">
+                  Role a roda do mouse (scroll) para frente no Roblox até o seu avatar sumir da câmera. Isso garante 100% de visão limpa e impede que o bot persiga seu próprio boneco. Outros jogadores com <strong>@Nome</strong> flutuando ou formato vertical agora são descartados automaticamente por IA e visão computacional!
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Card de IA Gemini 2.0 Flash (Aprendizado Contínuo & Oráculo) */}
+          <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex flex-col gap-3 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Brain size={18} className="text-purple-500" />
+                <span className="font-bold text-xs text-theme-text">IA Google Gemini 2.0 Flash (Oráculo & Auto-Treinamento)</span>
+              </div>
+              {geminiKey ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                  <CheckCircle2 size={12} />
+                  IA Conectada & Ativa
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                  <AlertCircle size={12} />
+                  Sem Chave de API
+                </span>
+              )}
+            </div>
+
+            <p className="text-[11px] leading-relaxed text-theme-text-muted">
+              {geminiKey
+                ? "A IA em nuvem analisa frames de dúvida em segundo plano a cada 10s (sem travar seus 60 FPS), rotula e salva imagens automaticamente no dataset para continuar aprendendo enquanto o bot joga!"
+                : "Com a chave gratuita do Gemini (1.500 requisições/dia da Google Cloud), a IA atua como um Oráculo visual tirando dúvidas do YOLO e salvando amostras para continuar aprendendo sozinha."}
+            </p>
+
+            {isEditingKey ? (
+              <div className="flex flex-col gap-2 pt-1 border-t border-purple-500/20">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="password"
+                    placeholder="Cole sua chave (AIzaSy...)"
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-xl bg-theme-surface-card border border-theme-border/60 text-xs font-mono text-theme-text focus:outline-none focus:border-purple-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => saveGeminiKey(keyInput)}
+                    className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors"
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingKey(false)}
+                    className="px-2.5 py-1.5 rounded-xl bg-theme-surface-card text-theme-text-muted hover:text-theme-text text-xs"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] text-purple-400 hover:underline flex items-center gap-1"
+                >
+                  <span>Obter chave gratuita no Google AI Studio (sem custos)</span>
+                  <ExternalLink size={10} />
+                </a>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between pt-1 border-t border-purple-500/20">
+                <span className="text-[10px] text-theme-text-muted font-mono">
+                  {geminiKey ? `Chave: ${geminiKey.substring(0, 8)}••••••••••••` : "Nenhuma chave configurada"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setKeyInput(geminiKey);
+                    setIsEditingKey(true);
+                  }}
+                  className="text-xs font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+                >
+                  <Key size={12} />
+                  <span>{geminiKey ? "Alterar Chave" : "Inserir Chave Gratuita"}</span>
+                </button>
+              </div>
+            )}
+
+            {keySavedMessage && (
+              <span className="text-[11px] text-emerald-400 font-bold animate-pulse">
+                ✅ Chave salva com sucesso! A IA está pronta para uso em todos os modelos.
+              </span>
+            )}
+          </div>
+
           {/* 1. Modo Operacional */}
           <div className="flex flex-col gap-2">
             <label className="font-bold text-theme-text flex items-center gap-2">
@@ -93,18 +218,18 @@ export const BotConfigModal: React.FC = () => {
                 {[
                   {
                     id: "all_spirits",
-                    title: "🌸 Coleta de Ursos (Branco + Preto)",
-                    desc: "Patrulha o mapa de Hanami e absorve ambos os ursos mágicos.",
+                    title: "🌸 Coleta de Gatinhos (Branco + Preto)",
+                    desc: "Patrulha o mapa de Hanami e absorve ambos os gatinhos mágicos.",
                   },
                   {
                     id: "white_only",
-                    title: "🤍 Apenas Ursos Brancos (Sakura)",
-                    desc: "Foca unicamente nos ursos brancos brilhantes nas alamedas.",
+                    title: "🤍 Apenas Gatinhos Brancos (Sakura)",
+                    desc: "Foca unicamente nos gatinhos brancos brilhantes nas alamedas.",
                   },
                   {
                     id: "black_only",
-                    title: "🖤 Apenas Ursos Pretos (Kuro)",
-                    desc: "Foca unicamente nos ursos pretos nas sombras e templos.",
+                    title: "🖤 Apenas Gatinhos Pretos (Kuro)",
+                    desc: "Foca unicamente nos gatinhos pretos nas sombras e templos.",
                   },
                   {
                     id: "patrol_only",
@@ -368,21 +493,51 @@ export const BotConfigModal: React.FC = () => {
             <select
               value={config.weights}
               onChange={(e) =>
-                patchConfig( { weights: e.target.value })
+                patchConfig({ weights: e.target.value })
               }
               className="w-full px-3.5 py-2.5 rounded-2xl bg-theme-surface-card border border-theme-border/60 text-theme-text focus:outline-none focus:border-theme-primary font-mono text-xs"
             >
               {isHanami && (
                 <option value="yolo_hanami_spirits_v1.pt">
-                  Rastreador Nativo de Visão (Sem necessidade de .pt - Ativo)
+                  👁️ Rastreador Nativo de Visão (Sem necessidade de .pt)
                 </option>
               )}
-              {discoveredModels.map((m) => (
-                <option key={m.id} value={m.path}>
-                  {m.filename} ({m.sizeFormatted}) — {m.classes.join(", ")}
-                </option>
-              ))}
+              {discoveredModels.map((m) => {
+                let badge = "";
+                if (m.filename === "yolo11_hanami_spirits.pt") {
+                  badge = "⭐ RECOMENDADO (Especializado nos Ursos Branco & Preto)";
+                } else if (m.filename === "yolo11_roblox_official.pt") {
+                  badge = "🎮 Multi-Jogos Roblox (Ursos, Jogadores, Moedas)";
+                } else if (m.filename.includes("official")) {
+                  badge = "⚠️ COCO Geral (Não recomendado para Hanami)";
+                }
+                return (
+                  <option key={m.id} value={m.path}>
+                    {m.filename} {badge ? `— ${badge}` : `(${m.sizeFormatted}) — ${m.classes.join(", ")}`}
+                  </option>
+                );
+              })}
             </select>
+
+            {isHanami && (!config?.weights || !String(config.weights).includes("hanami_spirits")) && (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/25 text-xs text-purple-600 dark:text-purple-300">
+                <span className="font-medium">💡 Quer máxima precisão nos ursos?</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hanamiModel = discoveredModels.find(m => m.filename.includes("hanami_spirits"));
+                    if (hanamiModel) {
+                      patchConfig({ weights: hanamiModel.path });
+                    } else {
+                      patchConfig({ weights: "yolo11_hanami_spirits.pt" });
+                    }
+                  }}
+                  className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-sm transition-all"
+                >
+                  ⭐ Selecionar yolo11_hanami_spirits.pt
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 3. Dispositivo de Processamento */}

@@ -145,6 +145,12 @@ class ActiveLearningManager:
         except queue.Full:
             pass
 
+    def get_latest_spatial_guidance(self) -> Dict[str, Any]:
+        """
+        Retorna o último diagnóstico espacial e de enrosco gerado pelo Gemini.
+        """
+        return self.cloud_vision.get_latest_navigation()
+
     def get_latest_oracle_detections(self) -> List[Dict[str, Any]]:
         """
         Retorna as últimas detecções geradas pelo Gemini para auxiliar o bot.
@@ -183,6 +189,9 @@ class ActiveLearningManager:
                     class_name=self.class_name,
                 )
 
+                # Atualiza navegação espacial obtida
+                nav_guidance = self.cloud_vision.get_latest_navigation()
+
                 if detections:
                     # 1. Salvar imagem e anotação YOLO
                     sample_id = f"active_sample_{int(timestamp)}_{self.samples_collected + 1}"
@@ -209,10 +218,15 @@ class ActiveLearningManager:
                             ymin, xmin, ymax, xmax = [v / 1000.0 for v in box]
                             x1, y1 = round(xmin * w0, 1), round(ymin * h0, 1)
                             x2, y2 = round(xmax * w0, 1), round(ymax * h0, 1)
+                            raw_lbl = str(d.get("label", self.class_name)).lower()
+                            kind = "black" if ("preto" in raw_lbl or "kuro" in raw_lbl or "black" in raw_lbl) else "white"
+                            label = "Gatinho Preto (Kuro)" if kind == "black" else "Gatinho Branco (Sakura)"
                             formatted_oracle.append({
-                                "class_id": 0,
-                                "class_name": d.get("label", self.class_name),
-                                "confidence": d.get("confidence", 0.95),
+                                "class_id": 1 if kind == "black" else 0,
+                                "class_name": label,
+                                "label": label,
+                                "kind": kind,
+                                "confidence": float(d.get("confidence", 0.95)),
                                 "bbox": (x1, y1, x2, y2),
                                 "rel_center": (round((xmin + xmax) / 2, 3), round((ymin + ymax) / 2, 3)),
                                 "source": "gemini_active_learning"
@@ -229,9 +243,17 @@ class ActiveLearningManager:
                             sample_id=sample_id,
                             samples_collected=self.samples_collected,
                             detections_count=len(detections),
+                            navigation=nav_guidance,
                             reason=reason,
                             quota=quota,
-                            message=f"🧠 Gemini auto-anotou {len(detections)} objeto(s) ao vivo no jogo! Total: {self.samples_collected} amostras",
+                            message=f"🧠 Gemini identificou {len(detections)} gatinho(s) ao vivo! Total: {self.samples_collected} amostras",
+                        )
+                elif nav_guidance and nav_guidance.get("is_stuck"):
+                    if self._emit_callback:
+                        self._emit_callback(
+                            "navigation_warning",
+                            navigation=nav_guidance,
+                            message=f"⚠️ Gemini detectou bloqueio/enrosco frontal: {nav_guidance.get('reason')}"
                         )
 
             except Exception as e:

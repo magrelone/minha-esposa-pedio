@@ -74,11 +74,22 @@ def setup_active_learning(cfg):
         return None
 
     try:
-        target_desc = "espíritos ou ursos colecionáveis" if "hanami" in str(cfg.get("bot_id", "")).lower() else "moedas ou itens colecionáveis"
-        class_name = "spirit" if "hanami" in str(cfg.get("bot_id", "")).lower() else "coin"
+        if "hanami" in str(cfg.get("bot_id", "")).lower():
+            target_desc = (
+                "espíritos em formato de gatinhos fofos 3D que flutuam no ar e giram continuamente no Roblox: "
+                "1) Gatinho branco perolado com olhos cósmicos roxos/azuis e flor sakura na cauda, flutuando e girando no ar. "
+                "2) Gatinho preto aveludado com orelhas e olhos rosa/lavanda luminosos, flutuando e girando no ar. "
+                "NÃO detectar avatares de jogadores em pé (@Nome flutuante). "
+                "NÃO detectar o cursor do mouse pixel-art."
+            )
+            class_name = "spirit"
+        else:
+            target_desc = "moedas ou itens colecionáveis"
+            class_name = "coin"
+
         active_learner = ActiveLearningManager(
             api_key=api_key,
-            min_interval_seconds=12.0,
+            min_interval_seconds=10.0,
             target_description=target_desc,
             class_name=class_name
         )
@@ -110,6 +121,10 @@ SCANCODES = {
     "space": 0x39,
     "e": 0x12,
     "shift": 0x2A,
+    "left": 0x4B,
+    "right": 0x4D,
+    "up": 0x48,
+    "down": 0x50,
 }
 
 VK_CODES = {
@@ -120,6 +135,10 @@ VK_CODES = {
     "space": 0x20,
     "e": 0x45,
     "shift": 0x10,
+    "left": 0x25,
+    "right": 0x27,
+    "up": 0x26,
+    "down": 0x28,
 }
 
 if sys.platform == "win32":
@@ -311,6 +330,40 @@ class HardwareInputController:
         for k in list(self.active_keys):
             self.release_key(k, simulation=False)
         self.active_keys.clear()
+
+    def rotate_camera(self, dx_pixels, dy_pixels=0, simulation=False):
+        """
+        Gira a câmera e a visão do personagem no Roblox.
+        Funciona tanto em 1ª Pessoa (mouse lock) quanto em 3ª Pessoa (drag com botão direito)
+        e aplica suporte por teclado (setas) se necessário.
+        """
+        if simulation or not self.user32:
+            return
+        try:
+            dx = int(dx_pixels)
+            dy = int(dy_pixels)
+            if dx == 0 and dy == 0:
+                return
+
+            # Movimento de mouse com botão direito segurado (mecanismo universal de câmera do Roblox)
+            # MOUSEEVENTF_RIGHTDOWN = 0x0008, MOUSEEVENTF_MOVE = 0x0001, MOUSEEVENTF_RIGHTUP = 0x0010
+            self.user32.mouse_event(0x0008, 0, 0, 0, 0)
+            time.sleep(0.003)
+            self.user32.mouse_event(0x0001, dx, dy, 0, 0)
+            time.sleep(0.003)
+            self.user32.mouse_event(0x0010, 0, 0, 0, 0)
+
+            # Para giros grandes, também dá um toque na seta do teclado para garantir rotação do avatar
+            if dx > 60:
+                self.press_key("right")
+                time.sleep(0.02)
+                self.release_key("right")
+            elif dx < -60:
+                self.press_key("left")
+                time.sleep(0.02)
+                self.release_key("left")
+        except Exception:
+            pass
 
 input_controller = HardwareInputController()
 
@@ -574,11 +627,16 @@ def execute_policy(detections, class_names, cfg, img_shape):
         dx = tx - xc
         dy = ty - yc
 
-        # Movimento fluido contínuo
+        # Virar a câmera suavemente em direção ao item detectado
+        if abs(dx) > 0.035:
+            turn_dx = int(dx * 350)
+            turn_dx = max(-160, min(160, turn_dx))
+            input_controller.rotate_camera(turn_dx, simulation=sim_mode)
+
         keys_pressed.append("w")
-        if dx > 0.05:
+        if dx > 0.12:
             keys_pressed.append("d")
-        elif dx < -0.05:
+        elif dx < -0.12:
             keys_pressed.append("a")
 
         if random.random() < jump_prob:
@@ -591,17 +649,19 @@ def execute_policy(detections, class_names, cfg, img_shape):
     else:
         if (now - explore_start_time) >= explore_duration:
             explore_start_time = now
-            # 70% chance de andar em frente (W), 15% virar para esquerda (W+A), 15% direita (W+D)
+            # 65% andar em frente (W), 17% virar esquerda com câmera, 18% virar direita com câmera
             r = random.random()
             if r < 0.65:
                 current_explore_key = "w"
                 explore_duration = random.uniform(2.0, 3.5)
             elif r < 0.82:
-                current_explore_key = "w+a"
-                explore_duration = random.uniform(1.0, 1.8)
+                current_explore_key = "w"
+                explore_duration = random.uniform(1.2, 2.0)
+                input_controller.rotate_camera(-140, simulation=sim_mode)
             else:
-                current_explore_key = "w+d"
-                explore_duration = random.uniform(1.0, 1.8)
+                current_explore_key = "w"
+                explore_duration = random.uniform(1.2, 2.0)
+                input_controller.rotate_camera(140, simulation=sim_mode)
 
         for k in current_explore_key.split("+"):
             keys_pressed.append(k)
@@ -744,21 +804,18 @@ def _looks_like_player_avatar(frame, bbox, kind="black"):
 
 
 def _spirit_geometry_ok(bbox, frame_shape, kind="white"):
-    """Geometria: ursos são blobs compactos. Arbustos/paredes sakura viram caixas enormes."""
+    """Geometria: gatinhos são compactos e flutuam girando em 3D."""
     h, w = frame_shape[:2]
     x1, y1, x2, y2 = [float(v) for v in bbox]
     bw, bh = max(1.0, abs(x2 - x1)), max(1.0, abs(y2 - y1))
     area_ratio = (bw * bh) / float(max(1, w * h))
     aspect = bw / float(bh)
-    if aspect < 0.40 or aspect > 2.4:
+    # Gatinho girando em 3D em perspectiva tem aspect entre 0.48 e 2.8
+    if aspect < 0.48 or aspect > 2.8:
         return False
-    # Branco: FPs em flor/muro costumam ser caixas grandes; urso real é mais compacto
-    if kind == "white":
-        if area_ratio < 0.0012 or area_ratio > 0.12:
-            return False
-    else:
-        if area_ratio < 0.0008 or area_ratio > 0.18:
-            return False
+    # Aceita gatinhos desde pequenos à distância (área ~0.00008) até grandes de perto (área 0.30)
+    if area_ratio < 0.00008 or area_ratio > 0.30:
+        return False
     return True
 
 
@@ -773,10 +830,10 @@ def _center_crop_stats(frame, bbox):
     x2, y2 = min(w - 1, max(x1 + 1, x2)), min(h - 1, max(y1 + 1, y2))
     bw, bh = x2 - x1, y2 - y1
     # Miolo central ~50%
-    mx1 = x1 + int(bw * 0.25)
-    my1 = y1 + int(bh * 0.25)
-    mx2 = x2 - int(bw * 0.25)
-    my2 = y2 - int(bh * 0.25)
+    mx1 = x1 + int(bw * 0.20)
+    my1 = y1 + int(bh * 0.20)
+    mx2 = x2 - int(bw * 0.20)
+    my2 = y2 - int(bh * 0.20)
     if mx2 <= mx1 or my2 <= my1:
         mx1, my1, mx2, my2 = x1, y1, x2, y2
     crop = frame[my1:my2, mx1:mx2]
@@ -785,8 +842,8 @@ def _center_crop_stats(frame, bbox):
     gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
     hsv = cv2.cvtColor(crop, cv2.COLOR_RGB2HSV)
     hch, sch, vch = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
-    # Rosa/magenta sakura (OpenCV H: ~140-179 e 0-15)
-    pink = ((hch >= 140) | (hch <= 15)) & (sch >= 60) & (vch >= 80)
+    # Rosa/magenta sakura (OpenCV H: ~135-179 e 0-15)
+    pink = ((hch >= 135) | (hch <= 15)) & (sch >= 40) & (vch >= 70)
     pink_ratio = float(np.mean(pink.astype(np.float32)))
     return {
         "luma": float(np.mean(gray)),
@@ -797,60 +854,235 @@ def _center_crop_stats(frame, bbox):
 
 
 def _white_spirit_ok(frame, bbox):
-    """Urso branco = glow claro no miolo. Arbusto/parede rosa = saturação rosa alta."""
+    """Gatinho branco = glow claro/perolado no miolo, aceitando o tom pastel rosa natural."""
     st = _center_crop_stats(frame, bbox)
     if not st:
         return False
-    # Vegetação sakura / muro florido
-    if st["pink_ratio"] > 0.32:
+    # Só descarta se for folhagem pura ultra-saturada
+    if st["sat"] > 140 and st["pink_ratio"] > 0.60:
         return False
-    if st["sat"] > 95 and st["pink_ratio"] > 0.15:
-        return False
-    # Glow / perolado (longe/borrado fica um pouco mais escuro)
-    if st["luma"] < 130:
+    # Glow / perolado claro
+    if st["luma"] < 95:
         return False
     return True
 
 
 def _black_spirit_ok(frame, bbox):
-    """Urso preto = miolo escuro redondo (não chapéu/corpo do player)."""
+    """Gatinho preto = miolo aveludado escuro com orelhas e olhos rosa/lavanda luminosos."""
     st = _center_crop_stats(frame, bbox)
     if not st:
         return False
-    # Olhos brilhantes elevam a média — não exige preto absoluto
-    if st["luma"] > 135:
-        return False
-    if st["pink_ratio"] > 0.40:
+    # Aceita até luma 180 para permitir o brilho das orelhas e olhos luminosos em degradê
+    if st["luma"] > 180:
         return False
     if _looks_like_player_avatar(frame, bbox, "black"):
+        return False
+    if _is_game_mouse_cursor(frame, bbox):
         return False
     return True
 
 
-def _is_chase_worthy(det, conf_chase_white=0.48, conf_chase_black=0.40):
-    """Só sai da patrulha por urso confiável. Nunca persegue o próprio avatar."""
+_mouse_cursor_template = None
+_mouse_cursor_mask = None
+
+def _get_mouse_cursor_template():
+    global _mouse_cursor_template, _mouse_cursor_mask
+    if _mouse_cursor_template is not None:
+        return _mouse_cursor_template, _mouse_cursor_mask
+    try:
+        import cv2
+        for p in [
+            Path(__file__).resolve().parent / "assets" / "mouse_cursor_filter.png",
+            Path(__file__).resolve().parent.parent.parent / "mouseicom.png",
+            Path("mouseicom.png"),
+        ]:
+            if p.exists():
+                rgba = cv2.imread(str(p), cv2.IMREAD_UNCHANGED)
+                if rgba is not None and rgba.shape[2] == 4:
+                    _mouse_cursor_template = rgba[:, :, :3]
+                    _mouse_cursor_mask = rgba[:, :, 3]
+                    break
+    except Exception:
+        pass
+    return _mouse_cursor_template, _mouse_cursor_mask
+
+
+def _is_game_mouse_cursor(frame, bbox, hwnd=None):
+    """
+    Detecta e descarta o cursor de mouse customizado do jogo.
+    O cursor é um gatinho preto pixel-art (Chococat) com balão de estrela amarela na esquerda,
+    laço rosa na orelha direita e coração rosa na cabeça.
+    Utiliza template matching com mouseicom.png, GetCursorPos e análise de cores HSV.
+    """
+    try:
+        import cv2
+        import numpy as np
+
+        h, w = frame.shape[:2]
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        bw = max(1, x2 - x1)
+        bh = max(1, y2 - y1)
+
+        # 1. Posição física do cursor no Windows (GetCursorPos + ScreenToClient)
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                from ctypes import wintypes
+                class POINT(ctypes.Structure):
+                    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+                pt = POINT()
+                if ctypes.windll.user32.GetCursorPos(ctypes.byref(pt)):
+                    target_h = hwnd or find_roblox_window("Roblox")
+                    if target_h:
+                        ctypes.windll.user32.ScreenToClient(target_h, ctypes.byref(pt))
+                        mx, my = pt.x, pt.y
+                        # Se o cursor do Windows estiver sobre ou adjacente (margem 45px) da caixa:
+                        if (x1 - 45 <= mx <= x2 + 45) and (y1 - 45 <= my <= y2 + 45):
+                            return True
+            except Exception:
+                pass
+
+        # 2. Template Matching com o ícone exato transparente fornecido pelo usuário (mouseicom.png)
+        if 35 <= bw <= 130 and 35 <= bh <= 130:
+            tmpl, mask = _get_mouse_cursor_template()
+            if tmpl is not None:
+                py1 = max(0, y1 - 15)
+                py2 = min(h, y2 + 15)
+                px1 = max(0, x1 - 15)
+                px2 = min(w, x2 + 15)
+                area_crop = frame[py1:py2, px1:px2]
+                if area_crop.shape[0] >= 65 and area_crop.shape[1] >= 75:
+                    res = cv2.matchTemplate(area_crop, tmpl, cv2.TM_SQDIFF_NORMED, mask=mask)
+                    min_val, _, _, _ = cv2.minMaxLoc(res)
+                    if min_val < 0.22:
+                        return True
+
+        # 2. Assinatura Visual do Cursor (Pixel art: tamanho compacto, laço rosa e estrela amarela)
+        # O cursor do mouse é pequeno (bw <= 90 e bh <= 100)
+        if bw < 90 and bh < 100:
+            crop = frame[max(0, y1):min(h, y2), max(0, x1):min(w, x2)]
+            if crop.size > 0:
+                hsv = cv2.cvtColor(crop, cv2.COLOR_RGB2HSV)
+                ch_h, ch_s, ch_v = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
+
+                # Laço rosa na orelha / coração rosa
+                pink_bow = ((ch_h >= 135) | (ch_h <= 15)) & (ch_s >= 25) & (ch_v >= 120)
+                has_pink = float(np.mean(pink_bow)) > 0.02
+
+                # Estrela amarela pendurada à esquerda
+                star_region = hsv[:int(crop.shape[0] * 0.75), :int(crop.shape[1] * 0.55)]
+                if star_region.size > 0:
+                    sr_h, sr_s, sr_v = star_region[:, :, 0], star_region[:, :, 1], star_region[:, :, 2]
+                    yellow_star = (sr_h >= 18) & (sr_h <= 36) & (sr_s >= 30) & (sr_v >= 130)
+                    has_star = float(np.mean(yellow_star)) > 0.02
+                else:
+                    has_star = False
+
+                # Olhos grandes brancos no miolo do rosto
+                white_eyes = (ch_s <= 35) & (ch_v >= 200)
+                has_eyes = float(np.mean(white_eyes)) > 0.035
+
+                if has_pink and (has_star or has_eyes):
+                    return True
+                if has_star and has_pink:
+                    return True
+    except Exception:
+        pass
+
+    return False
+
+
+def _has_player_nametag_above(frame, bbox):
+    """
+    Detecta se há um NameTag de jogador do Roblox flutuando acima da caixa.
+    Jogadores têm texto nítido (@Nome e nível/patinha) com cores características:
+    - Verde pastel/neon (@Nome do jogador)
+    - Rosa/magenta (ícone de patinha e pontuação)
+    - Branco de alto contraste com borda preta
+    Espíritos/ursos no chão NÃO têm nametag flutuando em cima!
+    """
+    try:
+        import cv2
+        import numpy as np
+
+        h, w = frame.shape[:2]
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        bw = max(1, x2 - x1)
+        bh = max(1, y2 - y1)
+
+        # NameTags de jogadores do Roblox só aparecem acima de corpos de jogadores (bh >= 45 e bw >= 25)
+        # Espíritos e gatinhos compactos (bh < 45) nunca têm nametag de jogador
+        if bh < 45 or bw < 25:
+            return False
+
+        # Região imediatamente acima da cabeça (onde fica o NameTag do Roblox)
+        tag_h = int(min(90, max(16, bh * 0.55)))
+        tag_y1 = max(0, y1 - tag_h)
+        tag_y2 = min(h - 1, y1 + int(bh * 0.06))
+        tag_x1 = max(0, x1 - int(bw * 0.25))
+        tag_x2 = min(w - 1, x2 + int(bw * 0.25))
+
+        if tag_y2 <= tag_y1 or tag_x2 <= tag_x1:
+            return False
+
+        tag_crop = frame[tag_y1:tag_y2, tag_x1:tag_x2]
+        if tag_crop.size == 0:
+            return False
+
+        # 1. Checar variações de borda horizontais (linhas de texto / letras @NOME)
+        gray = cv2.cvtColor(tag_crop, cv2.COLOR_RGB2GRAY)
+        sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+        edge_density = float(np.mean(np.abs(sobel_x)))
+
+        # 2. Checar cores típicas de NameTag no Roblox
+        hsv = cv2.cvtColor(tag_crop, cv2.COLOR_RGB2HSV)
+
+        # Verde pastel/neon do Roblox (@Nome em verde)
+        green_mask = (hsv[:, :, 0] >= 25) & (hsv[:, :, 0] <= 90) & (hsv[:, :, 1] >= 20) & (hsv[:, :, 2] >= 120)
+        green_ratio = float(np.mean(green_mask))
+
+        # Rosa / Magenta da patinha e pontuação do Roblox Hanami
+        pink_mask = ((hsv[:, :, 0] >= 135) | (hsv[:, :, 0] <= 15)) & (hsv[:, :, 1] >= 25) & (hsv[:, :, 2] >= 120)
+        pink_ratio = float(np.mean(pink_mask))
+
+        # Branco de texto nítido com contorno escuro
+        white_text = (hsv[:, :, 1] <= 45) & (hsv[:, :, 2] >= 190)
+        white_ratio = float(np.mean(white_text))
+
+        # Se tiver densidade de caracteres/letras e qualquer uma das cores características de NameTag
+        if edge_density > 14.0:
+            if green_ratio > 0.015 or pink_ratio > 0.015 or white_ratio > 0.04:
+                return True
+    except Exception:
+        pass
+
+    return False
+
+
+def _is_chase_worthy(det, conf_chase_white=0.25, conf_chase_black=0.22):
+    """Permite perseguição de gatinhos visíveis sem confundir com o avatar central."""
     kind = det.get("kind", "white")
     conf = float(det.get("confidence", 0))
     need = conf_chase_white if kind == "white" else conf_chase_black
     if conf < need:
         return False
     cx, cy = det.get("rel_center", [0.5, 0.5])
-    # Zona estreita do personagem
-    if 0.40 < cx < 0.60 and cy > 0.58:
+    # Zona estreita do personagem no centro inferior
+    if 0.38 < cx < 0.62 and cy > 0.55:
         return False
-    if cy < 0.18:
+    # Aceita gatinhos no horizonte e rua à frente
+    if cy < 0.10:
         return False
-    return cy >= 0.22
+    return True
 
 
-def detect_hanami_spirits(frame, yolo_obj=None, mode="all_spirits", conf_thres=0.28):
-    """Detecta ursos com limiares assimétricos: preto mais sensível, branco mais rigoroso."""
+def detect_hanami_spirits(frame, yolo_obj=None, mode="all_spirits", conf_thres=0.25):
+    """Detecta gatinhos com mapeamento inteligente de classes por nome e filtro rigoroso de jogadores."""
     dets = []
-    conf_base = max(0.20, min(0.85, float(conf_thres or 0.28)))
-    # Inferência baixa; filtro por classe depois (branco FP costuma ser 0.26–0.44)
-    conf_infer = min(conf_base, 0.28)
-    conf_white_keep = max(0.42, conf_base if conf_base >= 0.42 else 0.42)
-    conf_black_keep = max(0.32, min(conf_base, 0.38))
+    conf_base = max(0.18, min(0.85, float(conf_thres or 0.25)))
+    conf_infer = min(conf_base, 0.25)
+    conf_white_keep = max(0.20, conf_base)
+    conf_black_keep = max(0.20, min(conf_base, 0.32))
 
     if yolo_obj:
         try:
@@ -862,11 +1094,49 @@ def detect_hanami_spirits(frame, yolo_obj=None, mode="all_spirits", conf_thres=0
                 conf_thres=conf_infer,
                 iou_thres=0.45,
             )
+
+            # Obter mapa de nomes das classes do modelo carregado
+            model_names = {}
+            if hasattr(yolo_obj.get("model"), "names"):
+                model_names = yolo_obj["model"].names
+            elif "class_names" in yolo_obj:
+                model_names = {i: n for i, n in enumerate(yolo_obj["class_names"])}
+
             for d in yolo_dets:
                 cid = int(d["class_id"])
-                if cid not in (0, 1):
+                cname = ""
+                if isinstance(model_names, dict):
+                    cname = str(model_names.get(cid, "")).lower()
+                elif isinstance(model_names, (list, tuple)) and cid < len(model_names):
+                    cname = str(model_names[cid]).lower()
+
+                # Se a classe for explicitamente um jogador / person / avatar, DESCARTA!
+                if "player" in cname or "person" in cname or "jogador" in cname or "avatar" in cname:
                     continue
-                kind = "white" if cid == 0 else "black"
+
+                # Mapeamento inteligente de classe
+                kind = None
+                if "branco" in cname or "white" in cname or "sakura" in cname:
+                    kind = "white"
+                elif "preto" in cname or "black" in cname or "kuro" in cname:
+                    kind = "black"
+                elif cid == 0 and len(model_names) <= 2:
+                    kind = "white"
+                elif cid == 1 and len(model_names) <= 2:
+                    kind = "black"
+                elif cid == 2 and ("urso" in cname or "spirit" in cname or "gato" in cname):
+                    kind = "white"
+                elif cid == 3 and ("urso" in cname or "spirit" in cname or "gato" in cname):
+                    kind = "black"
+                else:
+                    # Modelo genérico
+                    if cid == 0:
+                        kind = "white"
+                    elif cid == 1:
+                        kind = "black"
+                    else:
+                        continue
+
                 conf = float(d["confidence"])
                 if kind == "white" and conf < conf_white_keep:
                     continue
@@ -875,10 +1145,28 @@ def detect_hanami_spirits(frame, yolo_obj=None, mode="all_spirits", conf_thres=0
 
                 cx, cy = d["rel_center"]
                 x1, y1, x2, y2 = d["bbox"]
-                rel_w = abs(x2 - x1) / float(max(1, w))
-                rel_h = abs(y2 - y1) / float(max(1, h))
+                bw = max(1.0, abs(x2 - x1))
+                bh = max(1.0, abs(y2 - y1))
+                rel_w = bw / float(max(1, w))
+                rel_h = bh / float(max(1, h))
+
+                # FILTRO 1: Descartar zona do próprio avatar em 3ª pessoa
                 if _is_player_avatar_zone(cx, cy, rel_w, rel_h, bbox=d["bbox"], frame_shape=frame.shape):
                     continue
+
+                # FILTRO 2: Proporção de humanoide alto em pé (bh >= 1.95 * bw = corpo alto de player com pernas)
+                # Gatinhos flutuando com orelhas em pé têm bh entre 0.6 * bw e 1.85 * bw
+                if bh > 1.95 * bw:
+                    continue
+
+                # FILTRO 3: NameTag flutuante (@Nome e patinha) acima da cabeça
+                if _has_player_nametag_above(frame, d["bbox"]):
+                    continue
+
+                # FILTRO 4: Cursor de mouse customizado do jogo (gatinho preto pixel-art)
+                if _is_game_mouse_cursor(frame, d["bbox"]):
+                    continue
+
                 if not _spirit_geometry_ok(d["bbox"], frame.shape, kind=kind):
                     continue
                 if kind == "white" and not _white_spirit_ok(frame, d["bbox"]):
@@ -888,7 +1176,7 @@ def detect_hanami_spirits(frame, yolo_obj=None, mode="all_spirits", conf_thres=0
                 if _looks_like_player_avatar(frame, d["bbox"], kind):
                     continue
 
-                label = "Urso Branco (Sakura)" if kind == "white" else "Urso Preto (Kuro)"
+                label = "Gatinho Branco (Sakura)" if kind == "white" else "Gatinho Preto (Kuro)"
                 if mode == "white_only" and kind != "white":
                     continue
                 if mode == "black_only" and kind != "black":
@@ -901,13 +1189,13 @@ def detect_hanami_spirits(frame, yolo_obj=None, mode="all_spirits", conf_thres=0
                     "rel_center": [cx, cy],
                     "kind": kind,
                 })
-            # No máximo 3 por frame (evita chuva de caixas na preview)
+            # No máximo 4 por frame
             dets.sort(key=lambda x: x["confidence"], reverse=True)
-            return dets[:3]
+            return dets[:4]
         except Exception:
             pass
 
-    # Fallback só preto (branco por morfologia gera demais FP em sakura)
+    # Fallback morfológico com filtro de nametag e proporção
     import cv2
     import numpy as np
 
@@ -915,33 +1203,80 @@ def detect_hanami_spirits(frame, yolo_obj=None, mode="all_spirits", conf_thres=0
         h, w = frame.shape[:2]
         gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        _, mask_black = cv2.threshold(blurred, 40, 255, cv2.THRESH_BINARY_INV)
+        _, mask_black = cv2.threshold(blurred, 75, 255, cv2.THRESH_BINARY_INV)
         mask_black[:int(h * 0.10), :] = 0
         mask_black[int(h * 0.90):, :] = 0
         contours_b, _ = cv2.findContours(mask_black, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours_b:
             area = cv2.contourArea(cnt)
-            if 700 < area < 25000:
+            if 25 < area < 30000:
                 x, y, cw, ch = cv2.boundingRect(cnt)
                 aspect = float(cw) / max(1, ch)
                 cx = (x + cw / 2.0) / float(w)
                 cy = (y + ch / 2.0) / float(h)
                 bbox = [x, y, x + cw, y + ch]
+                # Ignora HUD e menus do canto superior esquerdo
+                if cx < 0.10 and cy < 0.30:
+                    continue
                 if _is_player_avatar_zone(cx, cy, cw / float(w), ch / float(h), bbox=bbox, frame_shape=frame.shape):
+                    continue
+                if ch > 1.95 * cw:
+                    continue
+                if _has_player_nametag_above(frame, bbox):
                     continue
                 if _looks_like_player_avatar(frame, bbox, "black"):
                     continue
-                if 0.45 < aspect < 2.2 and _spirit_geometry_ok(bbox, frame.shape, "black") and _black_spirit_ok(frame, bbox):
+                if _is_game_mouse_cursor(frame, bbox):
+                    continue
+                if 0.35 < aspect < 2.8 and _spirit_geometry_ok(bbox, frame.shape, "black") and _black_spirit_ok(frame, bbox):
                     dets.append({
                         "class_id": 1,
-                        "label": "Urso Preto (Kuro)",
-                        "confidence": 0.50,
+                        "label": "Gatinho Preto (Kuro)",
+                        "confidence": 0.52,
                         "bbox": bbox,
                         "rel_center": [cx, cy],
                         "kind": "black",
                     })
+
+    if mode in ["all_spirits", "white_only"] and len(dets) < 3:
+        h, w = frame.shape[:2]
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        _, mask_white = cv2.threshold(blurred, 205, 255, cv2.THRESH_BINARY)
+        mask_white[:int(h * 0.12), :] = 0
+        mask_white[int(h * 0.90):, :] = 0
+        contours_w, _ = cv2.findContours(mask_white, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours_w:
+            area = cv2.contourArea(cnt)
+            if 30 < area < 25000:
+                x, y, cw, ch = cv2.boundingRect(cnt)
+                aspect = float(cw) / max(1, ch)
+                cx = (x + cw / 2.0) / float(w)
+                cy = (y + ch / 2.0) / float(h)
+                bbox = [x, y, x + cw, y + ch]
+                if cx < 0.10 and cy < 0.30:
+                    continue
+                if _is_player_avatar_zone(cx, cy, cw / float(w), ch / float(h), bbox=bbox, frame_shape=frame.shape):
+                    continue
+                if ch > 1.95 * cw:
+                    continue
+                if _has_player_nametag_above(frame, bbox):
+                    continue
+                if _looks_like_player_avatar(frame, bbox, "white"):
+                    continue
+                if _is_game_mouse_cursor(frame, bbox):
+                    continue
+                if 0.35 < aspect < 2.8 and _spirit_geometry_ok(bbox, frame.shape, "white") and _white_spirit_ok(frame, bbox):
+                    dets.append({
+                        "class_id": 0,
+                        "label": "Gatinho Branco (Sakura)",
+                        "confidence": 0.50,
+                        "bbox": bbox,
+                        "rel_center": [cx, cy],
+                        "kind": "white",
+                    })
     dets.sort(key=lambda x: x["confidence"], reverse=True)
-    return dets[:3]
+    return dets[:4]
 
 
 def _run_hanami_patrol_step(waypoints, current_wp_idx, wp_started_at, now, sim_mode, jump_prob=0.05, refresh_keys=False):
@@ -956,6 +1291,17 @@ def _run_hanami_patrol_step(waypoints, current_wp_idx, wp_started_at, now, sim_m
         wp_started_at = now
         advanced = True
         log("movement", f"🗺️ Waypoint: {wp['name']} — {wp['description']}")
+
+        # Rotação ativa da câmera ao mudar de waypoint para seguir a rua
+        dir_str = wp.get("direction", "w").lower()
+        if "a" in dir_str and "d" not in dir_str:
+            input_controller.rotate_camera(-140, simulation=sim_mode)
+        elif "d" in dir_str and "a" not in dir_str:
+            input_controller.rotate_camera(140, simulation=sim_mode)
+        elif wp.get("scan_camera", False):
+            input_controller.rotate_camera(70, simulation=sim_mode)
+            time.sleep(0.04)
+            input_controller.rotate_camera(-70, simulation=sim_mode)
 
     dir_keys = [k for k in wp.get("direction", "w").split("+") if k]
     if not dir_keys:
@@ -1178,12 +1524,14 @@ def hanami_worker():
     log("info", "🌸 Hanami Spirit Collector acordou — Patrulha de mapa + coleta de ursos pronta!")
     emit("status", state="initializing", message="Carregando YOLO11 dos ursos (hanami_spirits)...")
 
-    # Sempre força o detector especializado de Hanami (nunca o modelo de moedas do MM2)
+    # Suporta o modelo especializado yolo11_hanami_spirits.pt ou o modelo universal yolo11_roblox_official.pt
     raw_w = config.get("weights", "")
-    if not raw_w or "hanami" not in str(raw_w).lower() or "roblox_official" in str(raw_w).lower():
+    if not raw_w or "yolo11n_official" in str(raw_w).lower() or "yolo_hanami_spirits_v1" in str(raw_w).lower():
         raw_w = "yolo11_hanami_spirits.pt"
         config["weights"] = raw_w
-        log("info", "🌸 Pesos corrigidos automaticamente para yolo11_hanami_spirits.pt")
+        log("info", "🌸 Modelo selecionado: yolo11_hanami_spirits.pt (Especializado nos ursos de Hanami)")
+    elif "roblox_official" in str(raw_w).lower():
+        log("info", "🎮 Modelo selecionado: yolo11_roblox_official.pt (Multi-jogos Roblox com filtro de players)")
     hanami_weights = resolve_weights_file(raw_w)
 
     yolo_obj = None
@@ -1241,16 +1589,22 @@ def hanami_worker():
     approach_started_at = 0.0
     approach_timeout_s = float(config.get("approach_timeout_s", 3.5))
     last_key_refresh = 0.0
-    # Patrulha contínua SEMPRE: ursos longe ficam borrados — tem que andar o mapa inteiro
+    # Motor Anti-Enrosco (Detecção física de estagnação de tela + Spatial Vision Gemini)
+    last_motion_check = time.time()
+    last_frame_gray = None
+    stuck_counter = 0
+    last_unstuck_time = 0.0
+
+    # Patrulha contínua SEMPRE: gatinhos longe na rua — patrulhar o mapa inteiro
     patrol_when_empty = True
     config["patrol_when_empty"] = True
-    conf_detect = float(config.get("conf_thres", 0.28))
+    conf_detect = float(config.get("conf_thres", 0.25))
     if conf_detect > 0.45:
-        # Slider alto demais some com ursos borrados; mantém detecção sensível
-        log("info", f"🌸 conf_thres={conf_detect:.2f} alto — detecção usará 0.28; perseguição só com conf≥0.40")
-    conf_detect = min(conf_detect, 0.40)
-    conf_detect = max(0.22, conf_detect)
-    conf_chase = float(config.get("conf_chase", 0.40))
+        # Slider alto demais some com gatinhos; mantém detecção sensível
+        log("info", f"🌸 conf_thres={conf_detect:.2f} alto — detecção usará 0.25; perseguição ativa com conf≥0.22")
+    conf_detect = min(conf_detect, 0.35)
+    conf_detect = max(0.18, conf_detect)
+    conf_chase = float(config.get("conf_chase", 0.28))
 
     log(
         "info",
@@ -1355,19 +1709,21 @@ def hanami_worker():
                 oracle_dets = active_learner.get_latest_oracle_detections()
                 if oracle_dets:
                     for od in oracle_dets:
+                        kind_val = od.get("kind", "white")
+                        label_val = od.get("label", "Gatinho Branco (Sakura)" if kind_val == "white" else "Gatinho Preto (Kuro)")
                         detections.append({
-                            "class_id": 0,
-                            "label": "urso_branco",
-                            "confidence": od["confidence"],
+                            "class_id": od.get("class_id", 0),
+                            "label": label_val,
+                            "confidence": od.get("confidence", 0.90),
                             "bbox": od["bbox"],
                             "rel_center": od["rel_center"],
-                            "kind": "white",
+                            "kind": kind_val,
                         })
-                    log("vision", "🔮 Oráculo Gemini identificou espírito/urso em tempo real!")
+                    log("vision", f"🔮 Oráculo Gemini identificou {len(oracle_dets)} gatinho(s) em tempo real!")
         # Re-lê conf ao vivo (slider) sem matar a sensibilidade
         live_conf = float(config.get("conf_thres", conf_detect))
-        conf_detect = max(0.22, min(0.40, live_conf if live_conf <= 0.45 else 0.28))
-        conf_chase = max(conf_detect, float(config.get("conf_chase", 0.40)))
+        conf_detect = max(0.18, min(0.35, live_conf if live_conf <= 0.45 else 0.25))
+        conf_chase = max(conf_detect, float(config.get("conf_chase", 0.28)))
         t_inf = time.time()
 
         fps_capture = round(1.0 / max(0.001, t_cap - loop_t0), 1)
@@ -1385,17 +1741,84 @@ def hanami_worker():
                 bot_state = "WORKING"
                 wp_started_at = now
                 approach_started_at = 0.0
-                log("info", f"✨ Urso {current_target_name} absorvido com sucesso! Total na sessão: {spirits_collected} 🌸")
-                emit("action", action="collected", message=f"Urso absorvido (+1)! Total: {spirits_collected}", simulation=sim_mode)
+                log("info", f"✨ Gatinho {current_target_name} absorvido com sucesso! Total na sessão: {spirits_collected} 🌸")
+                emit("action", action="collected", message=f"Gatinho absorvido (+1)! Total: {spirits_collected}", simulation=sim_mode)
             else:
                 rem_s = round(max(0.0, dwell_time - elapsed_dwell), 1)
-                emit("action", action="absorbing", message=f"🌸 Absorvendo urso {current_target_name}... restam {rem_s}s", simulation=sim_mode)
+                emit("action", action="absorbing", message=f"🌸 Absorvendo {current_target_name}... restam {rem_s}s", simulation=sim_mode)
                 time.sleep(0.08)
 
         # ==========================================
-        # 4. PATRULHA PRIMÁRIA + APROXIMAÇÃO SÓ DE URSOS ÚTEIS
+        # 4. PATRULHA PRIMÁRIA + APROXIMAÇÃO + ANTI-ENROSCO
         # ==========================================
         elif bot_state == "WORKING":
+            # 3.5 DETECTOR ANTI-ENROSCO EM TEMPO REAL (Físico + Gemini Spatial Vision)
+            gemini_nav = active_learner.get_latest_spatial_guidance() if active_learner else {}
+            gemini_says_stuck = bool(gemini_nav.get("is_stuck", False) or gemini_nav.get("path_blocked", False))
+
+            # Checagem de fluxo de movimento na metade inferior da tela a cada 1.1s
+            if (now - last_motion_check) >= 1.1:
+                try:
+                    import cv2
+                    import numpy as np
+                    h_f, w_f = frame.shape[:2]
+                    lower_zone = frame[int(h_f * 0.40):, :]
+                    gray_thumb = cv2.resize(cv2.cvtColor(lower_zone, cv2.COLOR_RGB2GRAY), (120, 60))
+                    if last_frame_gray is not None:
+                        diff_val = float(np.mean(cv2.absdiff(gray_thumb, last_frame_gray)))
+                        # Se segurou teclas para andar e a tela praticamente estagnou (colisão frontal com parede/bambu):
+                        if diff_val < 2.0:
+                            stuck_counter += 1
+                        else:
+                            stuck_counter = max(0, stuck_counter - 1)
+                    last_frame_gray = gray_thumb
+                    last_motion_check = now
+                except Exception:
+                    pass
+
+            is_stuck_now = (stuck_counter >= 2 or (gemini_says_stuck and (now - last_unstuck_time) >= 3.5))
+            if is_stuck_now and (now - last_unstuck_time) >= 3.5:
+                stuck_counter = 0
+                last_unstuck_time = now
+                reason_desc = gemini_nav.get("reason", "Estagnação física contra parede/obstáculo") if gemini_says_stuck else "Colisão contra parede/obstáculo (estagnação física)"
+                suggested = gemini_nav.get("suggested_turn", "clear")
+
+                log("warning", f"🚧 Anti-Enrosco Acionado: {reason_desc}! Executando manobra de desvencilhar...")
+                emit("action", action="unstuck", message=f"Desvencilhando de obstáculo: {reason_desc}", simulation=sim_mode)
+                input_controller.release_all()
+                if not sim_mode:
+                    input_controller.focus_game_window(config.get("window_title", "Roblox"), force=True)
+
+                # Passo 1: Ré firme por 0.65s
+                input_controller.press_key('s', simulation=sim_mode, refresh=True)
+                time.sleep(0.65)
+                # Passo 2: Pulo para desengatar de quinas e pilares
+                input_controller.press_key(' ', simulation=sim_mode, refresh=True)
+                time.sleep(0.30)
+                input_controller.release_key(' ', simulation=sim_mode)
+                time.sleep(0.15)
+                input_controller.release_key('s', simulation=sim_mode)
+
+                # Passo 3: Giro de câmera em direção à rua aberta
+                if suggested == "turn_left":
+                    turn_dx = -260
+                elif suggested == "turn_right":
+                    turn_dx = 260
+                elif suggested == "turn_around":
+                    turn_dx = 380
+                else:
+                    turn_dx = random.choice([-280, 280])
+                input_controller.rotate_camera(turn_dx, simulation=sim_mode)
+                time.sleep(0.15)
+
+                # Passo 4: Avanço lateral para desviar
+                esc_key = 'a' if turn_dx < 0 else 'd'
+                input_controller.hold_keys(['w', esc_key], simulation=sim_mode, refresh=True)
+                time.sleep(0.45)
+                input_controller.release_all()
+                wp_started_at = now
+                continue
+
             now_ts = now
             candidates = [
                 d for d in detections
@@ -1407,7 +1830,7 @@ def hanami_worker():
             ]
             chase_targets = [
                 d for d in candidates
-                if _is_chase_worthy(d, conf_chase_white=max(0.50, conf_chase), conf_chase_black=max(0.42, conf_chase * 0.9))
+                if _is_chase_worthy(d, conf_chase_white=max(0.24, conf_chase * 0.75), conf_chase_black=max(0.20, conf_chase * 0.70))
             ]
 
             if approach_started_at > 0 and (now - approach_started_at) >= approach_timeout_s:
@@ -1431,7 +1854,7 @@ def hanami_worker():
                 if approach_started_at <= 0:
                     approach_started_at = now
 
-                if cy >= 0.36 and 0.36 <= cx <= 0.64:
+                if cy >= 0.34 and 0.32 <= cx <= 0.68:
                     bot_state = "COLLECTING"
                     dwell_started_at = now
                     current_target_name = target["label"]
@@ -1442,10 +1865,17 @@ def hanami_worker():
                     input_controller.release_all()
                     log("movement", f"🐾 Em alcance de coleta com {current_target_name}! Iniciando absorção ({dwell_time}s)...")
                 else:
+                    # Rotação ativa de câmera em direção ao urso
+                    error_x = cx - 0.50
+                    if abs(error_x) > 0.035:
+                        turn_dx = int(error_x * 400)
+                        turn_dx = max(-180, min(180, turn_dx))
+                        input_controller.rotate_camera(turn_dx, simulation=sim_mode)
+
                     keys_to_press = ["w"]
-                    if cx < 0.46:
+                    if error_x < -0.15:
                         keys_to_press.append("a")
-                    elif cx > 0.54:
+                    elif error_x > 0.15:
                         keys_to_press.append("d")
 
                     if not sim_mode:

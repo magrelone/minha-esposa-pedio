@@ -37,6 +37,12 @@ class GeminiCloudVision:
     ):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
         self.model = model
+        self.last_navigation_guidance: Dict[str, Any] = {
+            "is_stuck": False,
+            "path_blocked": False,
+            "suggested_turn": "clear",
+            "reason": "Inicializado"
+        }
 
         # Local de persistência de gastos e cotas
         if usage_file:
@@ -46,6 +52,10 @@ class GeminiCloudVision:
             self.usage_file = base_dir / "runtime" / "gemini_usage.json"
         
         self._ensure_usage_dir()
+
+    def get_latest_navigation(self) -> Dict[str, Any]:
+        """Retorna o último diagnóstico de navegação espacial e enrosco produzido pelo Gemini."""
+        return dict(self.last_navigation_guidance)
 
     def _ensure_usage_dir(self):
         try:
@@ -155,10 +165,24 @@ class GeminiCloudVision:
         b64_img = base64.b64encode(image_bytes).decode("utf-8")
 
         prompt = f"""
-Você é um especialista em visão computacional para automação de jogos.
-Analise esta imagem de jogo (que pode conter filtros visuais, névoa, desfoque de movimento ou cores saturadas).
-Detecte com precisão a localização de todos os: {target_description}.
-Para cada objeto detectado, forneça o bounding box em coordenadas normalizadas de 0 a 1000 no formato [ymin, xmin, ymax, xmax].
+Você é um especialista de alto nível em visão computacional e navegação espacial autônoma para jogos em 3ª pessoa no Roblox.
+Analise detalhadamente esta imagem de jogo:
+
+1. DETECÇÃO DE ALVOS ({target_description}):
+- Localize todos os alvos visíveis:
+  * Gatinhos brancos (espíritos sakura perolados, pequenas orelhas, flor na cauda, flutuam e giram continuamente no ar).
+  * Gatinhos pretos (espíritos kuro aveludados, orelhas e olhos luminosos em tons rosa/magenta, flutuam e giram continuamente no ar).
+- IMPORTANTE: Eles flutuam ligeiramente acima do chão ou bancadas e realizam giro 3D contínuo (idle spin).
+- NÃO confunda com avatares de jogadores (personagens altos com pernas e tronco em pé, roupas listradas ou chapéus, ou com @Nome / tags de texto flutuando acima da cabeça).
+- NÃO confunda com o cursor customizado do mouse do jogo.
+- Para cada alvo detectado, informe o bounding box em coordenadas normalizadas [ymin, xmin, ymax, xmax] (0 a 1000) e a label correspondente ("gatinho_branco" ou "gatinho_preto").
+
+2. DIAGNÓSTICO DE NAVEGAÇÃO ESPACIAL E ENROSCO (STUCK DETECTION):
+- O personagem do jogador está no centro inferior da tela visto de costas em terceira pessoa.
+- Verifique se o personagem está ENROSCADO, COLADO ou OLHANDO DIRETAMENTE para uma parede, cerca, árvore, pilar de bambu, caixas ou obstáculo intransponível que impeça caminhar para a frente (sem saída frontal direta).
+- Se a visão frontal imediata estiver bloqueada por paredes, construções ou obstáculos: "path_blocked": true. Se estiver colado e sem conseguir andar livremente: "is_stuck": true.
+- Sugira a melhor manobra de desvencilhamento para o caminho livre ("suggested_turn": "turn_left", "turn_right", "turn_around", ou "clear").
+- Forneça uma breve justificativa em "reason".
 
 Responda ESTRITAMENTE em formato JSON com a seguinte estrutura:
 {{
@@ -168,7 +192,13 @@ Responda ESTRITAMENTE em formato JSON com a seguinte estrutura:
       "label": "{class_name}",
       "confidence": 0.95
     }}
-  ]
+  ],
+  "navigation": {{
+    "is_stuck": false,
+    "path_blocked": false,
+    "suggested_turn": "clear",
+    "reason": "Caminho livre à frente"
+  }}
 }}
 """
 
@@ -209,6 +239,12 @@ Responda ESTRITAMENTE em formato JSON com a seguinte estrutura:
                 
                 # Consumo confirmado com sucesso
                 self._increment_usage()
+
+                # Atualiza navegação espacial
+                nav = parsed.get("navigation")
+                if isinstance(nav, dict):
+                    self.last_navigation_guidance = nav
+
                 return parsed.get("detections", [])
         except Exception as e:
             print(f"[GeminiCloudVision] Erro na requisição: {e}")

@@ -292,7 +292,7 @@ export const VisionView: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col">
                   <span className="text-[10px] font-bold text-amber-600 dark:text-amber-300">
-                    {isHanami ? "Ursos Brancos" : "Moedas Detectadas"}
+                    {isHanami ? "Gatinhos Brancos" : "Moedas Detectadas"}
                   </span>
                   <span className="text-lg font-black text-amber-500 font-mono">
                     {detectedCoins}
@@ -300,7 +300,7 @@ export const VisionView: React.FC = () => {
                 </div>
                 <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex flex-col">
                   <span className="text-[10px] font-bold text-rose-600 dark:text-rose-300">
-                    {isHanami ? "Ursos Pretos" : "Jogadores Próximos"}
+                    {isHanami ? "Gatinhos Pretos" : "Jogadores Próximos"}
                   </span>
                   <span className="text-lg font-black text-rose-500 font-mono">
                     {detectedPlayers}
