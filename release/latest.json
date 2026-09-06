@@ -1,8 +1,8 @@
 {
-    "version":  "1.1.6",
-    "notes":  "🌸 Detecção aprimorada de gatinhos brancos e pretos que flutuam e giram em 3D, filtro do cursor do jogo e motor inteligente anti-enrosco contra paredes e obstáculos (tempo real + visão espacial Gemini 2.0 Flash)!",
-    "pub_date":  "2026-09-06T08:09:41.8237388Z",
-    "url":  "https://github.com/magrelone/minha-esposa-pedio/releases/download/v1.1.6/Pedi para meu marido_1.1.6_x64-setup.exe",
-    "fileName":  "Pedi para meu marido_1.1.6_x64-setup.exe",
-    "size":  18710347
+    "version":  "1.1.7",
+    "notes":  "Correção crítica de atalhos globais, parada de emergência universal de bots e autoclick, e supressão da abertura espontânea do menu iniciar flutuante.",
+    "pub_date":  "2026-09-06T10:19:03.8582162Z",
+    "url":  "https://github.com/magrelone/minha-esposa-pedio/releases/download/v1.1.7/Pedi para meu marido_1.1.7_x64-setup.exe",
+    "fileName":  "Pedi para meu marido_1.1.7_x64-setup.exe",
+    "size":  18706808
 }
