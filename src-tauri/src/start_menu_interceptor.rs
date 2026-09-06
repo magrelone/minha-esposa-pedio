@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use tauri::AppHandle;
 
-pub static INTERCEPT_START_ENABLED: AtomicBool = AtomicBool::new(true);
+pub static INTERCEPT_START_ENABLED: AtomicBool = AtomicBool::new(false);
 static APP_HANDLE_HOLDER: OnceLock<AppHandle> = OnceLock::new();
 
 #[tauri::command]
@@ -24,9 +24,6 @@ pub fn init_start_menu_interceptor(app: AppHandle) {
     {
         std::thread::spawn(move || {
             use windows_sys::Win32::Foundation::{HWND, LPARAM, WPARAM};
-            use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-                keybd_event, KEYEVENTF_KEYUP, VK_ESCAPE,
-            };
             use windows_sys::Win32::UI::WindowsAndMessaging::{
                 GetClassNameW, GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId,
                 ShowWindow, SW_HIDE, WM_CLOSE, PostMessageW,
@@ -36,7 +33,7 @@ pub fn init_start_menu_interceptor(app: AppHandle) {
             let mut suppress_cooldown = std::time::Instant::now();
 
             loop {
-                std::thread::sleep(std::time::Duration::from_millis(30));
+                std::thread::sleep(std::time::Duration::from_millis(100));
 
                 if !INTERCEPT_START_ENABLED.load(Ordering::SeqCst) {
                     continue;
@@ -54,12 +51,10 @@ pub fn init_start_menu_interceptor(app: AppHandle) {
                     let class_name = String::from_utf16_lossy(&class_buf[..class_len as usize]);
 
                     // Janela de Menu Iniciar do Windows 10/11
-                    let is_start_class = class_name == "Windows.UI.Core.CoreWindow"
-                        || class_name == "XamlExplorerHostIslandWindow"
+                    let is_start_class = class_name == "XamlExplorerHostIslandWindow"
                         || class_name == "StartMenuExperienceHost";
 
                     if is_start_class {
-                        // Verifica se pertence ao processo do Start Menu
                         let mut pid = 0u32;
                         GetWindowThreadProcessId(fg_hwnd, &mut pid);
 
@@ -68,18 +63,15 @@ pub fn init_start_menu_interceptor(app: AppHandle) {
                         let title = String::from_utf16_lossy(&title_buf[..title_len as usize]);
 
                         let is_start_title = title.eq_ignore_ascii_case("iniciar")
-                            || title.eq_ignore_ascii_case("start")
-                            || title.is_empty();
+                            || title.eq_ignore_ascii_case("start");
 
-                        if is_start_title && (fg_hwnd != last_suppressed_hwnd || suppress_cooldown.elapsed().as_millis() > 300) {
+                        if is_start_title && (fg_hwnd != last_suppressed_hwnd || suppress_cooldown.elapsed().as_millis() > 500) {
                             last_suppressed_hwnd = fg_hwnd;
                             suppress_cooldown = std::time::Instant::now();
 
-                            // 1. Fecha / esconde a janela nativa do Windows imediatamente
+                            // 1. Fecha / esconde a janela nativa do Windows
                             ShowWindow(fg_hwnd, SW_HIDE);
                             PostMessageW(fg_hwnd, WM_CLOSE, 0 as WPARAM, 0 as LPARAM);
-                            keybd_event(VK_ESCAPE as u8, 0, 0, 0);
-                            keybd_event(VK_ESCAPE as u8, 0, KEYEVENTF_KEYUP, 0);
 
                             // 2. Abre a nossa janela flutuante no canto exato da barra de tarefas
                             if let Some(app_handle) = APP_HANDLE_HOLDER.get() {

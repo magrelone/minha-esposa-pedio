@@ -9,7 +9,6 @@ import {
   History,
   Settings,
 } from "lucide-react";
-import { listen } from "@tauri-apps/api/event";
 import { useAutoClickStore } from "./store/autoclickStore";
 import { AutoClickTab } from "./types";
 import { InputService } from "@/core/services/automation/InputService";
@@ -43,49 +42,6 @@ export const AutoClickApp: React.FC = () => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedPointIdToPick, setSelectedPointIdToPick] = useState<string | null>(null);
 
-  // Synchronize OS-level global shortcuts and Tauri events
-  useEffect(() => {
-    let unlistenStart: (() => void) | undefined;
-    let unlistenStatus: (() => void) | undefined;
-
-    // Listen to Start request from native OS hotkey
-    listen("autoclick-start-requested", () => {
-      const s = useAutoClickStore.getState();
-      if (!s.isRunning) {
-        s.startAutoClick();
-      }
-    })
-      .then((fn) => {
-        unlistenStart = fn;
-      })
-      .catch(() => {});
-
-    // Listen to Stop signal from native OS hotkey
-    listen<boolean>("autoclick-status-changed", (event) => {
-      const isRunningNative = event.payload;
-      const s = useAutoClickStore.getState();
-      if (!isRunningNative && s.isRunning) {
-        s.stopAutoClick("Atalho nativo disparado");
-      }
-    })
-      .then((fn) => {
-        unlistenStatus = fn;
-      })
-      .catch(() => {});
-
-    // Register current configured hotkey (defaults to Insert)
-    const keyToRegister = hotkeyStartStop || "Insert";
-    InputService.registerHotkey(keyToRegister).catch(() => {});
-
-    if (hotkeyEmergencyStop && hotkeyEmergencyStop.toUpperCase() !== "ESC" && hotkeyEmergencyStop.toUpperCase() !== "ESCAPE") {
-      InputService.registerEmergencyHotkey(hotkeyEmergencyStop).catch(() => {});
-    }
-
-    return () => {
-      if (unlistenStart) unlistenStart();
-      if (unlistenStatus) unlistenStatus();
-    };
-  }, [hotkeyStartStop, hotkeyEmergencyStop]);
 
   // Window-level hotkey listener (immediate reaction when window is focused)
   useEffect(() => {

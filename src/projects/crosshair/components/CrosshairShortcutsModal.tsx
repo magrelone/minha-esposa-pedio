@@ -56,11 +56,14 @@ export const CrosshairShortcutsModal: React.FC<CrosshairShortcutsModalProps> = (
     addToast(`Atalho da mira definido para ${newKey}! 🎯`, "sparkle");
   };
 
-  const handleSetAppKey = (newKey: string) => {
+  const handleSetAppKey = async (newKey: string) => {
     setAppKey(newKey);
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("pmm_hotkey_app", newKey);
     }
+    try {
+      await invoke("register_action_shortcut", { action: "window_toggle", key: newKey });
+    } catch {}
     addToast(`Atalho da central definido para ${newKey}! 🪟`, "info");
   };
 

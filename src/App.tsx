@@ -18,6 +18,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { checkForUpdates, UpdateInfo } from "./core/services/updateService";
 import { UpdateModal } from "./core/components/UpdateModal";
+import { syncAllSavedShortcutsToBackend } from "./core/stores/shortcutsStore";
+import { useAutoClickStore } from "./projects/autoclick/store/autoclickStore";
+import { useBotsStore } from "./projects/bots/store/botsStore";
+import { BotManager } from "./projects/bots/core/BotManager";
 
 export const App: React.FC = () => {
   const [currentRoute, setCurrentRoute] = useState<string>(() => {
@@ -88,6 +92,79 @@ export const App: React.FC = () => {
       if (unlisten) unlisten();
     };
   }, [setOverlayActive]);
+
+  // Synchronize OS-level shortcuts to Rust backend on startup
+  useEffect(() => {
+    syncAllSavedShortcutsToBackend();
+  }, []);
+
+  // Root-level global listeners for automation shortcuts (AutoClick & Bots)
+  useEffect(() => {
+    let unlistenAutoclickStart: (() => void) | undefined;
+    let unlistenAutoclickStatus: (() => void) | undefined;
+    let unlistenBotStart: (() => void) | undefined;
+    let unlistenBotStatus: (() => void) | undefined;
+
+    // 1. AutoClick Start request from native hotkey
+    listen("autoclick-start-requested", () => {
+      const s = useAutoClickStore.getState();
+      if (!s.isRunning) {
+        s.startAutoClick();
+      }
+    })
+      .then((fn) => {
+        unlistenAutoclickStart = fn;
+      })
+      .catch(() => {});
+
+    // 2. AutoClick Status update from native hotkey / engine
+    listen<boolean>("autoclick-status-changed", (event) => {
+      const isRunningNative = event.payload;
+      const s = useAutoClickStore.getState();
+      if (!isRunningNative && s.isRunning) {
+        s.stopAutoClick("Atalho nativo disparado");
+      }
+    })
+      .then((fn) => {
+        unlistenAutoclickStatus = fn;
+      })
+      .catch(() => {});
+
+    // 3. Bot Start request from native hotkey
+    listen("bot-start-requested", () => {
+      const botStore = useBotsStore.getState();
+      const activeBotId = botStore.activeBotId || "roblox-mm2-coin-collector";
+      const config = botStore.botConfigs[activeBotId] || {};
+      BotManager.startBot(activeBotId, config);
+    })
+      .then((fn) => {
+        unlistenBotStart = fn;
+      })
+      .catch(() => {});
+
+    // 4. Bot Status changed from native emergency stop / hotkey
+    listen<string>("bot-status-changed", (event) => {
+      const newStatus = event.payload;
+      const botStore = useBotsStore.getState();
+      if (botStore.activeBotId) {
+        botStore.setBotStatus(botStore.activeBotId, newStatus as any);
+        if (newStatus === "stopped") {
+          BotManager.stopBot(botStore.activeBotId);
+        }
+      }
+    })
+      .then((fn) => {
+        unlistenBotStatus = fn;
+      })
+      .catch(() => {});
+
+    return () => {
+      if (unlistenAutoclickStart) unlistenAutoclickStart();
+      if (unlistenAutoclickStatus) unlistenAutoclickStatus();
+      if (unlistenBotStart) unlistenBotStart();
+      if (unlistenBotStatus) unlistenBotStatus();
+    };
+  }, []);
 
   // Window-level keyboard shortcuts
   useEffect(() => {

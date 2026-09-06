@@ -429,6 +429,14 @@ pub fn bot_stop(bot_id: Option<String>) -> Result<Value, String> {
     Ok(json!({ "status": "stopped", "bot_id": bot_id }))
 }
 
+pub fn bot_is_running() -> bool {
+    if let Ok(mgr) = get_manager().lock() {
+        mgr.child.is_some()
+    } else {
+        false
+    }
+}
+
 #[tauri::command]
 pub fn bot_pause() -> Result<Value, String> {
     let mgr_lock = get_manager();

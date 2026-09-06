@@ -175,23 +175,34 @@ export const useShortcutsStore = create<ShortcutsState>()(
           ),
         }));
 
-        // 3. Sincronizar com os módulos específicos
+        // 3. Sincronizar com os módulos específicos através do despachante central Rust
         try {
+          const actionMap: Record<string, string> = {
+            system_toggle_window: "window_toggle",
+            crosshair_toggle_overlay: "crosshair_toggle",
+            autoclick_start_stop: "autoclick_start_stop",
+            autoclick_emergency_stop: "emergency_stop_all",
+            bots_start_pause: "bots_start_pause",
+            bots_emergency_kill: "bots_emergency_kill",
+          };
+
+          const action = actionMap[id];
+          if (action) {
+            await invoke("register_action_shortcut", { action, key: cleanKey }).catch((err) => {
+              console.warn(`[ShortcutsStore] Erro ao registrar ação ${action}:`, err);
+            });
+          }
+
           if (id === "system_toggle_window") {
             localStorage.setItem("pmm_hotkey_app", cleanKey);
           } else if (id === "crosshair_toggle_overlay") {
             localStorage.setItem("pmm_hotkey_overlay", cleanKey);
-            await invoke("register_custom_hotkey", { key: cleanKey }).catch(() => {});
           } else if (id === "autoclick_start_stop") {
             useAutoClickStore.getState().setHotkeys({ startStop: cleanKey });
-            await InputService.registerHotkey(cleanKey).catch(() => {});
           } else if (id === "autoclick_emergency_stop") {
             useAutoClickStore.getState().setHotkeys({ emergency: cleanKey });
-            await InputService.registerEmergencyHotkey(cleanKey).catch(() => {});
           } else if (id === "autoclick_pick_coordinate") {
             useAutoClickStore.getState().setHotkeys({ pick: cleanKey });
-          } else if (id === "bots_start_pause" || id === "bots_emergency_kill" || id === "bots_reload_vision") {
-            await invoke("register_custom_hotkey", { key: cleanKey }).catch(() => {});
           }
         } catch (err) {
           console.warn("[ShortcutsStore] Erro ao sincronizar atalho nativo:", err);
@@ -230,3 +241,26 @@ export const useShortcutsStore = create<ShortcutsState>()(
     }
   )
 );
+
+export const syncAllSavedShortcutsToBackend = async () => {
+  const state = useShortcutsStore.getState();
+  const actionMap: Record<string, string> = {
+    system_toggle_window: "window_toggle",
+    crosshair_toggle_overlay: "crosshair_toggle",
+    autoclick_start_stop: "autoclick_start_stop",
+    autoclick_emergency_stop: "emergency_stop_all",
+    bots_start_pause: "bots_start_pause",
+    bots_emergency_kill: "bots_emergency_kill",
+  };
+
+  for (const shortcut of state.shortcuts) {
+    const action = actionMap[shortcut.id];
+    if (action && shortcut.currentKey) {
+      try {
+        await invoke("register_action_shortcut", { action, key: shortcut.currentKey });
+      } catch (err) {
+        console.warn(`[ShortcutsStore] Erro ao sincronizar ${action}:`, err);
+      }
+    }
+  }
+};

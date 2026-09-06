@@ -35,7 +35,7 @@ export const DEFAULT_START_MENU: StartMenuConfig = {
   showPowerShortcuts: true,
   searchBarVisible: true,
   iconSize: "medium",
-  replaceNativeStartButton: true,
+  replaceNativeStartButton: false,
 };
 
 export const DEFAULT_TASKBAR: TaskbarConfig = {

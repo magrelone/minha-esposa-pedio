@@ -220,77 +220,131 @@ fn hide_main_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Default)]
+struct ShortcutDispatcher {
+    action_to_shortcut: std::collections::HashMap<String, Shortcut>,
+    shortcut_to_action: std::collections::HashMap<Shortcut, String>,
+}
+
+static SHORTCUT_DISPATCHER: OnceLock<std::sync::Mutex<ShortcutDispatcher>> = OnceLock::new();
+
+fn get_dispatcher() -> &'static std::sync::Mutex<ShortcutDispatcher> {
+    SHORTCUT_DISPATCHER.get_or_init(|| std::sync::Mutex::new(ShortcutDispatcher::default()))
+}
+
+fn dispatch_action(app: &AppHandle, action: &str) {
+    match action {
+        "autoclick_start_stop" => {
+            let engine = get_autoclick_engine();
+            if engine.get_status().running {
+                engine.stop(Some("Atalho Global (Parar)".to_string()));
+                autoclick_engine::AutoClickEngine::release_all_inputs_native();
+                let _ = app.emit("autoclick-status-changed", false);
+            } else {
+                let _ = app.emit("autoclick-start-requested", ());
+            }
+        }
+        "emergency_stop_all" => {
+            // Parada de Emergência Universal: para AutoClick, Bots e solta todos os botões/teclas
+            let engine = get_autoclick_engine();
+            if engine.get_status().running {
+                engine.emergency_stop();
+                let _ = app.emit("autoclick-status-changed", false);
+            }
+            if bot_manager::bot_is_running() {
+                let _ = bot_stop(None);
+                let _ = app.emit("bot-status-changed", "stopped");
+            }
+            autoclick_engine::AutoClickEngine::release_all_inputs_native();
+        }
+        "bots_start_pause" => {
+            if bot_manager::bot_is_running() {
+                let _ = bot_stop(None);
+                autoclick_engine::AutoClickEngine::release_all_inputs_native();
+                let _ = app.emit("bot-status-changed", "stopped");
+            } else {
+                let _ = app.emit("bot-start-requested", ());
+            }
+        }
+        "bots_emergency_kill" => {
+            if bot_manager::bot_is_running() {
+                let _ = bot_stop(None);
+                autoclick_engine::AutoClickEngine::release_all_inputs_native();
+                let _ = app.emit("bot-status-changed", "stopped");
+            }
+        }
+        "crosshair_toggle" => {
+            let _ = toggle_overlay(app.clone());
+        }
+        "window_toggle" => {
+            if let Some(win) = app.get_webview_window("main") {
+                if win.is_visible().unwrap_or(false) {
+                    let _ = win.hide();
+                } else {
+                    let _ = win.show();
+                    let _ = win.unminimize();
+                    let _ = win.set_focus();
+                }
+            }
+        }
+        "start_menu_toggle" => {
+            let _ = windows_toggle_hybrid_start_menu(app.clone());
+        }
+        _ => {}
+    }
+}
+
 #[tauri::command]
-fn register_custom_hotkey(app: AppHandle, key: String) -> Result<(), String> {
+fn register_action_shortcut(app: AppHandle, action: String, key: String) -> Result<(), String> {
     let key_upper = key.trim().to_uppercase();
     if key_upper == "ESC" || key_upper == "ESCAPE" {
-        return Ok(());
+        return Err("A tecla ESC isolada não pode ser registrada globalmente".to_string());
     }
 
-    if let Ok(sc) = key.parse::<Shortcut>() {
-        let ah = app.clone();
-        let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
-            if event.state() == ShortcutState::Pressed {
-                let _ = toggle_overlay(ah.clone());
-            }
-        });
-        let _ = app.global_shortcut().register(sc);
+    let new_sc = key.parse::<Shortcut>().map_err(|e| format!("Tecla inválida '{}': {}", key, e))?;
+
+    let mut disp = get_dispatcher().lock().map_err(|e| e.to_string())?;
+
+    // 1. Se esta ação já possuía um atalho, desregistra o anterior do SO
+    if let Some(old_sc) = disp.action_to_shortcut.remove(&action) {
+        disp.shortcut_to_action.remove(&old_sc);
+        let _ = app.global_shortcut().unregister(old_sc);
     }
+
+    // 2. Se a tecla já estava mapeada para outra ação, remove a associação antiga
+    if let Some(prev_action) = disp.shortcut_to_action.remove(&new_sc) {
+        disp.action_to_shortcut.remove(&prev_action);
+    }
+
+    // 3. Registra a nova tecla no SO se ainda não estiver registrada
+    if !app.global_shortcut().is_registered(new_sc.clone()) {
+        app.global_shortcut()
+            .register(new_sc.clone())
+            .map_err(|e| format!("Falha ao registrar atalho no SO: {}", e))?;
+    }
+
+    // 4. Mapeia a ação e a tecla
+    disp.action_to_shortcut.insert(action.clone(), new_sc.clone());
+    disp.shortcut_to_action.insert(new_sc, action);
+
     Ok(())
+}
+
+#[tauri::command]
+fn register_custom_hotkey(app: AppHandle, key: String) -> Result<(), String> {
+    register_action_shortcut(app, "crosshair_toggle".to_string(), key)
 }
 
 #[tauri::command]
 fn autoclick_register_hotkey(app: AppHandle, key: String) -> Result<(), String> {
-    let key_upper = key.trim().to_uppercase();
-    if key_upper == "ESC" || key_upper == "ESCAPE" {
-        return Ok(());
-    }
-
-    if let Ok(sc) = key.parse::<Shortcut>() {
-        let ah = app.clone();
-        let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
-            if event.state() == ShortcutState::Pressed {
-                let engine = get_autoclick_engine();
-                if engine.get_status().running {
-                    // Parada forçada imediata e liberação de todas as teclas/botões
-                    engine.stop(Some("Atalho Global (Parar)".to_string()));
-                    autoclick_engine::AutoClickEngine::release_all_inputs_native();
-                    let _ = ah.emit("autoclick-status-changed", false);
-                } else {
-                    let _ = ah.emit("autoclick-start-requested", ());
-                }
-            }
-        });
-        let _ = app.global_shortcut().register(sc);
-    }
-    Ok(())
+    register_action_shortcut(app, "autoclick_start_stop".to_string(), key)
 }
 
 #[tauri::command]
 fn autoclick_register_emergency_hotkey(app: AppHandle, key: String) -> Result<(), String> {
-    let key_upper = key.trim().to_uppercase();
-    // NUNCA registrar ESC/ESCAPE isolado globalmente: no Windows, RegisterHotKey consome
-    // a tecla exclusivamente em nível de SO, impedindo qualquer jogo de receber o ESC!
-    if key_upper == "ESC" || key_upper == "ESCAPE" {
-        return Ok(());
-    }
-
-    if let Ok(sc) = key.parse::<Shortcut>() {
-        let ah = app.clone();
-        let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
-            if event.state() == ShortcutState::Pressed {
-                let engine = get_autoclick_engine();
-                if engine.get_status().running {
-                    engine.emergency_stop();
-                    autoclick_engine::AutoClickEngine::release_all_inputs_native();
-                    let _ = ah.emit("autoclick-status-changed", false);
-                }
-            }
-        });
-        let _ = app.global_shortcut().register(sc);
-    }
-    Ok(())
+    register_action_shortcut(app, "emergency_stop_all".to_string(), key)
 }
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct WindowInfo {
@@ -490,7 +544,24 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--minimized"]),
         ))
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(move |app, shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        let action_opt = {
+                            if let Ok(disp) = get_dispatcher().lock() {
+                                disp.shortcut_to_action.get(shortcut).cloned()
+                            } else {
+                                None
+                            }
+                        };
+                        if let Some(action) = action_opt {
+                            dispatch_action(app, &action);
+                        }
+                    }
+                })
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             get_monitors,
             set_overlay_state,
@@ -498,6 +569,7 @@ pub fn run() {
             set_minimize_to_tray,
             show_main_window,
             hide_main_window,
+            register_action_shortcut,
             register_custom_hotkey,
             bot_start,
             bot_stop,
@@ -627,85 +699,18 @@ pub fn run() {
                 let _ = overlay.set_ignore_cursor_events(true);
             }
 
-            // Register AutoClick Default Global Shortcut: "Insert"
-            if let Ok(sc) = "Insert".parse::<Shortcut>() {
-                let ah = app.handle().clone();
-                let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        let engine = get_autoclick_engine();
-                        if engine.get_status().running {
-                            // Parada forçada imediata e liberação de todas as teclas/botões
-                            engine.stop(Some("Atalho Global Insert (Parar)".to_string()));
-                            autoclick_engine::AutoClickEngine::release_all_inputs_native();
-                            let _ = ah.emit("autoclick-status-changed", false);
-                        } else {
-                            let _ = ah.emit("autoclick-start-requested", ());
-                        }
-                    }
-                });
-                let _ = app.global_shortcut().register(sc);
-            }
-
-            // Register Emergency Stop Shortcut: "Shift+Escape" (não bloqueia o ESC isolado nos jogos)
-            if let Ok(sc) = "Shift+Escape".parse::<Shortcut>() {
-                let ah = app.handle().clone();
-                let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        let engine = get_autoclick_engine();
-                        if engine.get_status().running {
-                            engine.emergency_stop();
-                            autoclick_engine::AutoClickEngine::release_all_inputs_native();
-                            let _ = ah.emit("autoclick-status-changed", false);
-                        }
-                    }
-                });
-                let _ = app.global_shortcut().register(sc);
-            }
-
-            // Register Global Crosshair Overlay Shortcuts (dedicated only to overlay)
-            let crosshair_hotkeys = ["F10", "Control+Alt+X"];
-            for key in crosshair_hotkeys {
-                if let Ok(sc) = key.parse::<Shortcut>() {
-                    let ah = app.handle().clone();
-                    let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
-                        if event.state() == ShortcutState::Pressed {
-                            let _ = toggle_overlay(ah.clone());
-                        }
-                    });
-                    let _ = app.global_shortcut().register(sc);
-                }
-            }
-
-            let app_hotkeys = ["Control+H", "Control+Alt+C"];
-            for key in app_hotkeys {
-                if let Ok(sc) = key.parse::<Shortcut>() {
-                    let ah = app.handle().clone();
-                    let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
-                        if event.state() == ShortcutState::Pressed {
-                            if let Some(win) = ah.get_webview_window("main") {
-                                if win.is_visible().unwrap_or(false) {
-                                    let _ = win.hide();
-                                } else {
-                                    let _ = win.show();
-                                    let _ = win.unminimize();
-                                    let _ = win.set_focus();
-                                }
-                            }
-                        }
-                    });
-                    let _ = app.global_shortcut().register(sc);
-                }
-            }
-
-            // Atalho Global para abrir o Menu Iniciar Híbrido: Control+Alt+Z
-            if let Ok(sc) = "Control+Alt+Z".parse::<Shortcut>() {
-                let ah = app.handle().clone();
-                let _ = app.global_shortcut().on_shortcut(sc.clone(), move |_app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        let _ = windows_toggle_hybrid_start_menu(ah.clone());
-                    }
-                });
-                let _ = app.global_shortcut().register(sc);
+            // Registra atalhos padrão no Despachante Central Unificado
+            let default_shortcuts = [
+                ("autoclick_start_stop", "Insert"),
+                ("emergency_stop_all", "Shift+Escape"),
+                ("bots_start_pause", "F8"),
+                ("bots_emergency_kill", "Shift+F8"),
+                ("crosshair_toggle", "F10"),
+                ("window_toggle", "Control+H"),
+                ("start_menu_toggle", "Control+Alt+Z"),
+            ];
+            for (action, key) in default_shortcuts {
+                let _ = register_action_shortcut(app.handle().clone(), action.to_string(), key.to_string());
             }
 
             Ok(())
