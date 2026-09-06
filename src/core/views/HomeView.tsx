@@ -1,0 +1,243 @@
+import React, { useState } from "react";
+import { PROJECT_REGISTRY } from "../projects/registry";
+import { ProjectDefinition } from "../projects/types";
+import { useCrosshairStore } from "@/projects/crosshair/store/crosshairStore";
+import { Button } from "@/core/components/Button";
+import { Card } from "@/core/components/Card";
+import confetti from "canvas-confetti";
+import {
+  Heart,
+  Sparkles,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Flame,
+} from "lucide-react";
+
+interface HomeViewProps {
+  onNavigateToProject: (slug: string) => void;
+  onNavigateToTab: (tab: string) => void;
+}
+
+export const HomeView: React.FC<HomeViewProps> = ({
+  onNavigateToProject,
+  onNavigateToTab,
+}) => {
+  const { activeCrosshair, isOverlayActive, setOverlayActive } = useCrosshairStore();
+  const [heartClicks, setHeartClicks] = useState(0);
+
+  // Easter Egg: 5 clicks on the heart logo triggers delicate heart floats!
+  const handleHeartClick = () => {
+    const nextClicks = heartClicks + 1;
+    setHeartClicks(nextClicks);
+
+    if (nextClicks >= 5) {
+      setHeartClicks(0);
+      confetti({
+        particleCount: 25,
+        spread: 60,
+        origin: { y: 0.2 },
+        colors: ["#ec4899", "#f472b6", "#fbcfe8", "#c084fc", "#ffffff"],
+        shapes: ["circle"],
+        scalar: 1.2,
+      });
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-8 max-w-5xl mx-auto py-2">
+      {/* Hero Welcome Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-pink-500/10 via-purple-500/5 to-transparent p-8 rounded-cuter border border-theme-border/60 shadow-soft">
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span
+                onClick={handleHeartClick}
+                className="cursor-pointer select-none text-2xl hover:scale-125 transition-transform"
+                title="Feito com muito carinho 💕"
+              >
+                💕
+              </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-theme-primary">
+                Central de Mimos & Projetos
+              </span>
+            </div>
+            <h1 className="text-3xl font-extrabold text-theme-text">
+              Oi, meu amor! O que vamos usar hoje? ✨
+            </h1>
+            <p className="text-sm text-theme-text-muted max-w-xl">
+              Aqui fica reunido tudo o que você me pediu, desenvolvido com amor, cuidado e atenção a cada detalhe.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="primary"
+              size="lg"
+              icon={<Sparkles size={18} />}
+              onClick={() => onNavigateToProject("crosshair")}
+            >
+              Abrir Crosshair Studio
+            </Button>
+          </div>
+        </div>
+
+        {/* Decorative subtle background sparkles */}
+        <div className="absolute -right-6 -bottom-6 w-36 h-36 bg-theme-primary/10 rounded-full blur-2xl pointer-events-none" />
+      </div>
+
+      {/* Seção: Pedidos Concluídos & Em Andamento */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-theme-text flex items-center gap-2">
+            <Heart size={18} className="text-pink-500 fill-pink-500" />
+            Pedidos Concluídos 💗
+          </h3>
+          <span className="text-xs text-theme-text-muted">
+            1 concluído • mais a caminho
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Card: Crosshair Studio Concluído */}
+          <Card
+            hoverable
+            onClick={() => onNavigateToProject("crosshair")}
+            className="flex flex-col justify-between border-theme-primary/30 relative overflow-hidden group"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-400 to-rose-500 text-white flex items-center justify-center text-2xl shadow-soft group-hover:scale-110 transition-transform">
+                🎯
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-semibold text-[11px] flex items-center gap-1">
+                <CheckCircle2 size={12} /> Concluído
+              </span>
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-theme-text">Crosshair Studio</h4>
+              <p className="text-xs text-theme-text-muted mt-1">
+                Uma mira do jeitinho que você quiser com emojis, ícones, CS2 e overlay transparente.
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-theme-border/40 flex items-center justify-between text-xs text-theme-primary font-semibold">
+              <span>Abrir ferramenta</span>
+              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Card>
+
+          {/* Card: Central de Bots (Novo Módulo Concluído!) */}
+          <Card
+            hoverable
+            onClick={() => onNavigateToTab("bots")}
+            className="flex flex-col justify-between border-pink-400/50 relative overflow-hidden group shadow-soft"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-500 to-pink-500 text-white flex items-center justify-center text-2xl shadow-soft group-hover:scale-110 transition-transform">
+                🤖
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-pink-100 dark:bg-pink-950 text-pink-700 dark:text-pink-300 font-extrabold text-[11px] flex items-center gap-1">
+                <Sparkles size={12} /> Novo Módulo
+              </span>
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-theme-text">Central de Bots</h4>
+              <p className="text-xs text-theme-text-muted mt-1">
+                Roblox MM2 Coin Collector por visão computacional (YOLO) e automações personalizadas.
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-theme-border/40 flex items-center justify-between text-xs text-theme-primary font-semibold">
+              <span>Acessar Central de Bots 🧸</span>
+              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Card>
+
+          {/* Card: Auto Click Studio */}
+          <Card
+            hoverable
+            onClick={() => onNavigateToTab("autoclick")}
+            className="flex flex-col justify-between border-pink-400/50 relative overflow-hidden group shadow-soft"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center text-2xl shadow-soft group-hover:scale-110 transition-transform">
+                🖱️
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-pink-100 dark:bg-pink-950 text-pink-700 dark:text-pink-300 font-extrabold text-[11px] flex items-center gap-1">
+                <Sparkles size={12} /> Alta Precisão
+              </span>
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-theme-text">Auto Click Studio</h4>
+              <p className="text-xs text-theme-text-muted mt-1">
+                Cliques rápidos, multi-pontos, timeline com loops e gravação de macros em tempo real.
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-theme-border/40 flex items-center justify-between text-xs text-theme-primary font-semibold">
+              <span>Abrir Auto Click 💕</span>
+              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Card>
+
+          {/* Card: Próximos Pedidos */}
+          {PROJECT_REGISTRY.filter((p) => p.slug !== "crosshair" && p.slug !== "autoclick").map((proj) => (
+            <Card
+              key={proj.id}
+              className="flex flex-col justify-between opacity-75 bg-theme-surface-card"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="w-12 h-12 rounded-2xl bg-theme-border/40 text-theme-text-muted flex items-center justify-center text-2xl">
+                  {proj.icon}
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold text-[11px] flex items-center gap-1">
+                  <Clock size={12} /> Em breve
+                </span>
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-theme-text">{proj.name}</h4>
+                <p className="text-xs text-theme-text-muted mt-1">{proj.description}</p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-theme-border/40 text-xs text-theme-text-muted">
+                <span>Preparando para você 💕</span>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Seção: Mira Ativa Rápida */}
+      <section className="bg-theme-surface p-6 rounded-cuter border border-theme-border/60 shadow-soft flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#181f2f] flex items-center justify-center text-white border border-theme-border flex-shrink-0">
+            <span className="text-2xl">🎯</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs text-theme-text-muted uppercase font-bold tracking-wider">
+              Mira Selecionada no Momento
+            </span>
+            <h4 className="text-base font-bold text-theme-text">{activeCrosshair.name}</h4>
+            <span className="text-xs text-theme-text-muted">
+              {isOverlayActive ? "Ativa na tela no momento 🟢" : "Desativada na tela"}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant={isOverlayActive ? "danger" : "primary"}
+            size="md"
+            onClick={() => setOverlayActive(!isOverlayActive)}
+          >
+            {isOverlayActive ? "Ocultar da Tela" : "Exibir na Tela 🎯"}
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => onNavigateToProject("crosshair")}
+          >
+            Editar no Studio
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+};

@@ -1,0 +1,410 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Default Theme: Sakura (Rosa pastel + lilás + branco) */
+  --theme-bg: #fff5f7;
+  --theme-surface: #ffffff;
+  --theme-surface-card: #fdf2f4;
+  --theme-border: #fbcfe8;
+  --theme-primary: #ec4899;
+  --theme-primary-hover: #db2777;
+  --theme-primary-light: #fce7f3;
+  --theme-secondary: #c084fc;
+  --theme-accent: #f472b6;
+  --theme-text: #4c1d35;
+  --theme-text-muted: #9d6b84;
+}
+
+[data-theme="sakura"] {
+  --theme-bg: #fff5f7;
+  --theme-surface: #ffffff;
+  --theme-surface-card: #fdf2f4;
+  --theme-border: #fbcfe8;
+  --theme-primary: #ec4899;
+  --theme-primary-hover: #db2777;
+  --theme-primary-light: #fce7f3;
+  --theme-secondary: #c084fc;
+  --theme-accent: #f472b6;
+  --theme-text: #4c1d35;
+  --theme-text-muted: #9d6b84;
+}
+
+[data-theme="lilas"] {
+  --theme-bg: #f8f6ff;
+  --theme-surface: #ffffff;
+  --theme-surface-card: #f3effe;
+  --theme-border: #e9d5ff;
+  --theme-primary: #a855f7;
+  --theme-primary-hover: #9333ea;
+  --theme-primary-light: #f3e8ff;
+  --theme-secondary: #c084fc;
+  --theme-accent: #d8b4fe;
+  --theme-text: #3b0764;
+  --theme-text-muted: #8b5cf6;
+}
+
+[data-theme="morango"] {
+  --theme-bg: #fff1f2;
+  --theme-surface: #ffffff;
+  --theme-surface-card: #ffe4e6;
+  --theme-border: #fecdd3;
+  --theme-primary: #f43f5e;
+  --theme-primary-hover: #e11d48;
+  --theme-primary-light: #ffe4e6;
+  --theme-secondary: #fb7185;
+  --theme-accent: #fda4af;
+  --theme-text: #4c0519;
+  --theme-text-muted: #9f1239;
+}
+
+[data-theme="noite"] {
+  --theme-bg: #0f172a;
+  --theme-surface: #1e293b;
+  --theme-surface-card: #334155;
+  --theme-border: #475569;
+  --theme-primary: #f472b6;
+  --theme-primary-hover: #ec4899;
+  --theme-primary-light: #831843;
+  --theme-secondary: #a855f7;
+  --theme-accent: #38bdf8;
+  --theme-text: #f8fafc;
+  --theme-text-muted: #94a3b8;
+}
+
+[data-theme="clean"] {
+  --theme-bg: #f8fafc;
+  --theme-surface: #ffffff;
+  --theme-surface-card: #f1f5f9;
+  --theme-border: #e2e8f0;
+  --theme-primary: #64748b;
+  --theme-primary-hover: #475569;
+  --theme-primary-light: #e2e8f0;
+  --theme-secondary: #94a3b8;
+  --theme-accent: #cbd5e1;
+  --theme-text: #0f172a;
+  --theme-text-muted: #64748b;
+}
+
+[data-theme="dark"] {
+  --theme-bg: #09090b;
+  --theme-surface: #18181b;
+  --theme-surface-card: #27272a;
+  --theme-border: #3f3f46;
+  --theme-primary: #ec4899;
+  --theme-primary-hover: #db2777;
+  --theme-primary-light: #500724;
+  --theme-secondary: #06b6d4;
+  --theme-accent: #f472b6;
+  --theme-text: #fafafa;
+  --theme-text-muted: #a1a1aa;
+}
+
+[data-theme="ceu"] {
+  --theme-bg: #f0f9ff;
+  --theme-surface: #ffffff;
+  --theme-surface-card: #e0f2fe;
+  --theme-border: #bae6fd;
+  --theme-primary: #0284c7;
+  --theme-primary-hover: #0369a1;
+  --theme-primary-light: #e0f2fe;
+  --theme-secondary: #38bdf8;
+  --theme-accent: #7dd3fc;
+  --theme-text: #082f49;
+  --theme-text-muted: #0369a1;
+}
+
+[data-theme="jardim"] {
+  --theme-bg: #f2fbf4;
+  --theme-surface: #ffffff;
+  --theme-surface-card: #e8f7ec;
+  --theme-border: #bbf7d0;
+  --theme-primary: #10b981;
+  --theme-primary-hover: #059669;
+  --theme-primary-light: #d1fae5;
+  --theme-secondary: #f472b6;
+  --theme-accent: #34d399;
+  --theme-text: #064e3b;
+  --theme-text-muted: #047857;
+}
+
+html, body {
+  background: transparent;
+  background-color: transparent;
+}
+
+body:not(.is-overlay) {
+  background-color: var(--theme-bg);
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Custom delicate scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--theme-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-primary-light);
+}
+
+/* ==========================================================================
+   ✨ Glow, Bordas RGB Chroma & Animações Fofas para Crosshair Studio
+   ========================================================================== */
+
+@keyframes cuteRgbChroma {
+  0% {
+    filter: drop-shadow(0 0 6px #ff0055) drop-shadow(0 0 12px #ff0055);
+  }
+  16% {
+    filter: drop-shadow(0 0 6px #ff6600) drop-shadow(0 0 12px #ff6600);
+  }
+  33% {
+    filter: drop-shadow(0 0 6px #ffea00) drop-shadow(0 0 12px #ffea00);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px #00ff88) drop-shadow(0 0 12px #00ff88);
+  }
+  66% {
+    filter: drop-shadow(0 0 6px #00ddff) drop-shadow(0 0 12px #00ddff);
+  }
+  83% {
+    filter: drop-shadow(0 0 6px #aa00ff) drop-shadow(0 0 12px #aa00ff);
+  }
+  100% {
+    filter: drop-shadow(0 0 6px #ff0055) drop-shadow(0 0 12px #ff0055);
+  }
+}
+
+@keyframes cutePulseGlow {
+  0%, 100% {
+    opacity: 0.85;
+    transform: scale(0.96);
+    filter: drop-shadow(0 0 4px var(--glow-c, #ff69b4)) drop-shadow(0 0 8px var(--glow-c, #ff69b4));
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 10px var(--glow-c, #ff69b4)) drop-shadow(0 0 20px var(--glow-c, #ff69b4));
+  }
+}
+
+@keyframes cuteHeartbeat {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px var(--glow-c, #ff69b4));
+  }
+  14% {
+    transform: scale(1.18);
+    filter: drop-shadow(0 0 12px var(--glow-c, #ff69b4)) drop-shadow(0 0 20px var(--glow-c, #ff69b4));
+  }
+  28% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px var(--glow-c, #ff69b4));
+  }
+  42% {
+    transform: scale(1.22);
+    filter: drop-shadow(0 0 14px var(--glow-c, #ff69b4)) drop-shadow(0 0 24px var(--glow-c, #ff69b4));
+  }
+  70% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px var(--glow-c, #ff69b4));
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px var(--glow-c, #ff69b4));
+  }
+}
+
+@keyframes cuteSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cuteSparkle {
+  0%, 100% {
+    opacity: 0.75;
+    filter: drop-shadow(0 0 3px var(--glow-c, #ffea00));
+  }
+  25% {
+    opacity: 1;
+    filter: drop-shadow(0 0 12px var(--glow-c, #ffea00)) drop-shadow(0 0 22px var(--glow-c, #ffea00));
+  }
+  50% {
+    opacity: 0.6;
+    filter: drop-shadow(0 0 2px var(--glow-c, #ffea00));
+  }
+  75% {
+    opacity: 1;
+    filter: drop-shadow(0 0 16px var(--glow-c, #ffea00)) drop-shadow(0 0 28px var(--glow-c, #ffea00));
+  }
+}
+
+.anim-rgb-chroma {
+  animation: cuteRgbChroma var(--anim-speed, 2.5s) linear infinite;
+}
+
+.anim-pulse-glow {
+  animation: cutePulseGlow var(--anim-speed, 2s) ease-in-out infinite;
+  transform-origin: center center;
+}
+
+.anim-heartbeat {
+  animation: cuteHeartbeat var(--anim-speed, 1.4s) ease-in-out infinite;
+  transform-origin: center center;
+}
+
+.anim-spin {
+  animation: cuteSpin var(--anim-speed, 4s) linear infinite;
+  transform-origin: center center;
+}
+
+.anim-sparkle {
+  animation: cuteSparkle var(--anim-speed, 1.8s) ease-in-out infinite;
+}
+
+@keyframes cuteFlameGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px #ff3300) drop-shadow(0 0 14px #ff7700);
+    transform: scale(0.98) translateY(1px);
+  }
+  25% {
+    filter: drop-shadow(0 0 10px #ff6600) drop-shadow(0 0 20px #ffbb00);
+    transform: scale(1.03) translateY(-1px) rotate(1deg);
+  }
+  50% {
+    filter: drop-shadow(0 0 7px #ff2200) drop-shadow(0 0 16px #ff9900);
+    transform: scale(0.99) translateY(0px);
+  }
+  75% {
+    filter: drop-shadow(0 0 12px #ff5500) drop-shadow(0 0 24px #ffcc00);
+    transform: scale(1.04) translateY(-2px) rotate(-1deg);
+  }
+}
+
+.anim-flame {
+  animation: cuteFlameGlow var(--anim-speed, 1.2s) ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes cuteElectricGlitch {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px #00f0ff) drop-shadow(0 0 10px #0088ff);
+    transform: translate(0, 0);
+  }
+  15% {
+    filter: drop-shadow(0 0 12px #ffffff) drop-shadow(0 0 22px #00f0ff);
+    transform: translate(-1px, 1px);
+  }
+  30% {
+    filter: drop-shadow(0 0 6px #00f0ff) drop-shadow(0 0 12px #0055ff);
+    transform: translate(1px, -1px);
+  }
+  60% {
+    filter: drop-shadow(0 0 15px #00f0ff) drop-shadow(0 0 30px #ffffff);
+    transform: translate(-1px, -1px);
+  }
+  80% {
+    filter: drop-shadow(0 0 5px #0088ff);
+    transform: translate(0, 1px);
+  }
+}
+
+.anim-electric {
+  animation: cuteElectricGlitch var(--anim-speed, 0.9s) steps(4, jump-none) infinite;
+  transform-origin: center center;
+}
+
+@keyframes cuteSwing {
+  0%, 100% {
+    transform: rotate(-18deg);
+  }
+  50% {
+    transform: rotate(18deg);
+  }
+}
+
+.anim-swing {
+  animation: cuteSwing var(--anim-speed, 2s) ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes cuteWave {
+  0%, 100% {
+    transform: translateY(-4px) scale(0.97);
+    filter: drop-shadow(0 0 6px var(--glow-c, #00ddff)) drop-shadow(0 0 14px var(--glow-c, #00ddff));
+  }
+  50% {
+    transform: translateY(4px) scale(1.03);
+    filter: drop-shadow(0 0 12px var(--glow-c, #00ddff)) drop-shadow(0 0 24px var(--glow-c, #00ddff));
+  }
+}
+
+.anim-wave {
+  animation: cuteWave var(--anim-speed, 2.5s) ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes cuteVaporwave {
+  0% {
+    filter: drop-shadow(0 0 6px #ff007f) drop-shadow(0 0 14px #7928ca);
+  }
+  33% {
+    filter: drop-shadow(0 0 8px #7928ca) drop-shadow(0 0 16px #00dfd8);
+  }
+  66% {
+    filter: drop-shadow(0 0 8px #00dfd8) drop-shadow(0 0 16px #ff007f);
+  }
+  100% {
+    filter: drop-shadow(0 0 6px #ff007f) drop-shadow(0 0 14px #7928ca);
+  }
+}
+
+.anim-vaporwave {
+  animation: cuteVaporwave var(--anim-speed, 3.2s) linear infinite;
+  transform-origin: center center;
+}
+
+@keyframes cuteGhost {
+  0%, 100% {
+    opacity: 0.88;
+    filter: drop-shadow(0 0 4px var(--glow-c, #b388ff));
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    filter: drop-shadow(0 0 14px var(--glow-c, #b388ff)) drop-shadow(0 0 24px var(--glow-c, #b388ff));
+    transform: translateY(-5px) scale(1.05);
+  }
+}
+
+.anim-ghost {
+  animation: cuteGhost var(--anim-speed, 2.8s) ease-in-out infinite;
+  transform-origin: center center;
+}
+
+

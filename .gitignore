@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build Outputs
+dist/
+dist-ssr/
+*.local
+
+# Tauri & Rust
+src-tauri/target/
+target/
+**/*.rs.bk
+
+# Cache & Environment
+.env
+.env.*
+!.env.example
+.cache/
+.parcel-cache/
+.turbo/
+
+# Python & AI Runtimes
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+runtime/python/*env*/
+runtime/python/bots-env/
+runtime/python/**/site-packages/
+runs/
+scratch/
+*.pt
+weights/*.pt
+!weights/.gitkeep
+
+# IDE & OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# App Data & Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+.gemini/
