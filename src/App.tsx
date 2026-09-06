@@ -6,6 +6,7 @@ import { SettingsView } from "./core/views/SettingsView";
 import { AboutView } from "./core/views/AboutView";
 import { AssetHubView } from "./core/views/AssetHubView";
 import { ProfileView } from "./core/views/ProfileView";
+import { ShortcutsHubView } from "./core/views/ShortcutsHubView";
 import { CrosshairApp } from "./projects/crosshair/CrosshairApp";
 import { BotsApp } from "./projects/bots/BotsApp";
 import { AutoClickApp } from "./projects/autoclick/AutoClickApp";
@@ -164,6 +165,9 @@ export const App: React.FC = () => {
     }
     if (currentRoute === "/projects") {
       return <ProjectsView onSelectProject={(slug) => navigate(`/projects/${slug}`)} />;
+    }
+    if (currentRoute === "/shortcuts") {
+      return <ShortcutsHubView />;
     }
     if (currentRoute === "/settings") {
       return <SettingsView />;

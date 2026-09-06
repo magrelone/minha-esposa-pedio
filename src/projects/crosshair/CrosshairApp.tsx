@@ -28,11 +28,9 @@ import {
   Edit2,
   Sparkles,
 } from "lucide-react";
-import { CrosshairShortcutsModal } from "./components/CrosshairShortcutsModal";
-import { CrosshairShortcutsPanel } from "./components/CrosshairShortcutsPanel";
 import { CrosshairEffectsTab } from "./components/CrosshairEffectsTab";
 
-type EditorTab = "classic" | "layers" | "effects" | "emojis" | "icons" | "upload" | "gallery" | "shortcuts";
+type EditorTab = "classic" | "layers" | "effects" | "emojis" | "icons" | "upload" | "gallery";
 
 
 export const CrosshairApp: React.FC = () => {
@@ -54,7 +52,6 @@ export const CrosshairApp: React.FC = () => {
 
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(activeCrosshair.name);
@@ -171,14 +168,16 @@ export const CrosshairApp: React.FC = () => {
 
         {/* Action, Duplicate, Shortcuts & Save Buttons */}
         <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
-          {/* Botão de Atalhos do Crosshair */}
+          {/* Botão para Central de Atalhos */}
           <button
-            onClick={() => setShowShortcutsModal(true)}
+            onClick={() => {
+              window.location.hash = "/shortcuts";
+            }}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-theme-surface-card border border-theme-border/80 hover:border-theme-primary text-theme-text text-xs font-bold transition-all shadow-sm"
-            title="Configurar tecla de atalho para ligar/desligar a mira no jogo"
+            title="Abrir Central de Atalhos (F10 para ligar/desligar mira)"
           >
             <Keyboard size={15} className="text-theme-primary" />
-            <span>Atalhos (F10)</span>
+            <span>Central de Atalhos</span>
           </button>
 
           {/* Botão de Duplicar / Clonar Mira */}
@@ -228,7 +227,6 @@ export const CrosshairApp: React.FC = () => {
           { id: "classic", label: "Mira Clássica / Linhas 🎯", icon: <Sliders size={14} /> },
           { id: "upload", label: "Enviar Imagem 🖼️", icon: <ImageIcon size={14} /> },
           { id: "gallery", label: "Galeria de Miras 📚", icon: <FolderOpen size={14} /> },
-          { id: "shortcuts", label: "Atalhos do Teclado ⌨️", icon: <Keyboard size={14} /> },
         ].map((tab) => (
 
           <button
@@ -258,7 +256,6 @@ export const CrosshairApp: React.FC = () => {
           {activeTab === "emojis" && <EmojiPicker />}
           {activeTab === "icons" && <IconPicker />}
           {activeTab === "upload" && <ImageUploader />}
-          {activeTab === "shortcuts" && <CrosshairShortcutsPanel />}
 
           {activeTab === "gallery" && (
             <CrosshairGallery
@@ -280,10 +277,6 @@ export const CrosshairApp: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <CrosshairShortcutsModal
-        isOpen={showShortcutsModal}
-        onClose={() => setShowShortcutsModal(false)}
-      />
       <CS2ImporterModal
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}

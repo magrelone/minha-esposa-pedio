@@ -9,16 +9,16 @@ import {
   Zap,
   CheckCircle2,
   Sparkles,
+  Keyboard,
+  ExternalLink,
 } from "lucide-react";
 import { useAutoClickStore } from "../store/autoclickStore";
-import { HotkeyService } from "@/core/services/automation/HotkeyService";
 
 export const SettingsView: React.FC = () => {
   const {
     hotkeyStartStop,
     hotkeyEmergencyStop,
     hotkeyPickPosition,
-    setHotkeys,
     cornerFailsafe,
     setCornerFailsafe,
     simulationMode,
@@ -28,22 +28,6 @@ export const SettingsView: React.FC = () => {
     cps,
     timerDriftMs,
   } = useAutoClickStore();
-
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-
-  const handleSetKey = (type: "startStop" | "emergency" | "pick", val: string) => {
-    let cleanVal = val.trim();
-    if (!cleanVal) return;
-
-    if (type === "emergency" && (cleanVal.toUpperCase() === "ESC" || cleanVal.toUpperCase() === "ESCAPE")) {
-      cleanVal = "Shift+Escape";
-    }
-
-    if (type === "startStop") setHotkeys({ startStop: cleanVal });
-    if (type === "emergency") setHotkeys({ emergency: cleanVal });
-    if (type === "pick") setHotkeys({ pick: cleanVal });
-    setEditingKey(null);
-  };
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-4xl mx-auto">
@@ -62,65 +46,30 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Global Hotkeys Card */}
-      <div className="p-6 rounded-3xl bg-theme-surface border border-theme-border/60 shadow-soft flex flex-col gap-4">
-        <span className="text-xs font-black text-theme-text uppercase">Atalhos Globais do Sistema</span>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          {/* Start/Stop */}
-          <div className="p-4 rounded-2xl bg-theme-surface-card border border-theme-border/50 flex flex-col justify-between gap-3">
-            <div className="flex flex-col">
-              <span className="font-bold text-theme-text">Iniciar / Parar</span>
-              <span className="text-[10px] text-theme-text-muted">Alterna o clique em qualquer jogo</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={hotkeyStartStop}
-                onChange={(e) => handleSetKey("startStop", e.target.value)}
-                className="w-24 p-1.5 rounded-xl bg-theme-surface border border-theme-border/60 font-mono font-bold text-center text-xs text-pink-500 focus:outline-none"
-              />
-              <span className="text-[10px] text-theme-text-muted">Ativo</span>
-            </div>
+      {/* Central de Atalhos Link Card */}
+      <div className="p-6 rounded-3xl bg-theme-surface border border-theme-border/60 shadow-soft flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-2xl bg-pink-500/10 text-pink-500 flex-shrink-0">
+            <Keyboard size={22} />
           </div>
-
-          {/* Emergency Stop */}
-          <div className="p-4 rounded-2xl bg-theme-surface-card border border-theme-border/50 flex flex-col justify-between gap-3">
-            <div className="flex flex-col">
-              <span className="font-bold text-theme-text text-red-500 flex items-center gap-1">
-                <ShieldAlert size={14} /> Parada de Pânico
-              </span>
-              <span className="text-[10px] text-theme-text-muted">Cancela fila e solta teclas (Shift+ESC)</span>
-            </div>
+          <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={hotkeyEmergencyStop}
-                placeholder="Shift+Escape"
-                onChange={(e) => handleSetKey("emergency", e.target.value)}
-                className="w-28 p-1.5 rounded-xl bg-theme-surface border border-theme-border/60 font-mono font-bold text-center text-xs text-red-500 focus:outline-none"
-              />
-              <span className="text-[10px] text-theme-text-muted">Panic Key</span>
+              <span className="font-bold text-sm text-theme-text">Atalhos Unificados do Auto Click</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-theme-primary/10 text-theme-primary font-bold">Central</span>
             </div>
-          </div>
-
-          {/* Pick Position */}
-          <div className="p-4 rounded-2xl bg-theme-surface-card border border-theme-border/50 flex flex-col justify-between gap-3">
-            <div className="flex flex-col">
-              <span className="font-bold text-theme-text">Capturar Coordenada</span>
-              <span className="text-[10px] text-theme-text-muted">Captura onde o cursor estiver</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={hotkeyPickPosition}
-                onChange={(e) => handleSetKey("pick", e.target.value)}
-                className="w-24 p-1.5 rounded-xl bg-theme-surface border border-theme-border/60 font-mono font-bold text-center text-xs text-theme-text focus:outline-none"
-              />
-              <span className="text-[10px] text-theme-text-muted">Ativo</span>
-            </div>
+            <span className="text-xs text-theme-text-muted">
+              Início: <strong className="text-theme-text font-mono">{hotkeyStartStop || "Insert"}</strong> • Pânico: <strong className="text-red-500 font-mono">{hotkeyEmergencyStop || "Shift+Escape"}</strong> • Coordenada: <strong className="text-theme-text font-mono">{hotkeyPickPosition || "F7"}</strong>
+            </span>
           </div>
         </div>
+
+        <button
+          onClick={() => { window.location.hash = "/shortcuts"; }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-theme-surface-card hover:bg-theme-surface border border-theme-border/70 hover:border-theme-primary text-theme-text text-xs font-bold transition-all shadow-sm flex-shrink-0 self-end sm:self-center"
+        >
+          <span>Gerenciar na Central de Atalhos</span>
+          <ExternalLink size={14} />
+        </button>
       </div>
 
       {/* Safety & Failsafes */}

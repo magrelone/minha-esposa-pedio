@@ -189,9 +189,14 @@ export const AutoClickApp: React.FC = () => {
               <h1 className="text-sm font-semibold tracking-tight text-theme-text">
                 Auto Click
               </h1>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-theme-surface-card border border-theme-border/40 text-theme-text-muted">
-                Atalho: {hotkeyStartStop || "Insert"}
-              </span>
+              <button
+                onClick={() => { window.location.hash = "/shortcuts"; }}
+                className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-theme-surface-card border border-theme-border/60 hover:border-theme-primary text-theme-text-muted hover:text-theme-text transition-colors flex items-center gap-1"
+                title="Configurar teclas na Central de Atalhos"
+              >
+                <Keyboard size={11} className="text-theme-primary" />
+                <span>Atalho: {hotkeyStartStop || "Insert"}</span>
+              </button>
             </div>
           </div>
         </div>

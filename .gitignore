@@ -7,6 +7,8 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+release/*.exe
+*.exe
 
 # Tauri & Rust
 src-tauri/target/

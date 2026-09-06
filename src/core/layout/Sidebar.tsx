@@ -13,6 +13,7 @@ import {
   User,
   Bot,
   MousePointer,
+  Keyboard,
 } from "lucide-react";
 import { useThemeStore } from "../theme/themeManager";
 import { useProfileStore } from "../providers/dicebearProvider";
@@ -64,6 +65,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: "Auto Click",
       icon: <MousePointer size={18} />,
       route: "/autoclick",
+    },
+    {
+      id: "shortcuts",
+      label: "Atalhos",
+      icon: <Keyboard size={18} />,
+      route: "/shortcuts",
     },
     {
       id: "hub",
