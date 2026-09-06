@@ -1,73 +1,181 @@
-# Publish Windows installer to GitHub Releases WITHOUT Actions.
-# From monorepo root:
-#   powershell -File .\scripts\release-desktop.ps1
-#   powershell -File .\scripts\release-desktop.ps1 -Version 0.1.2
+# ==============================================================================
+#  💕 PEDI PARA MEU MARIDO - Publicador de Release Desktop (GitHub Releases)
+#  Gera build local e publica instalador (.exe) + latest.json sem GitHub Actions!
+# ==============================================================================
 #
-# Requires: pnpm, Node 20+, gh auth login (or $env:GH_TOKEN).
+# Uso:
+#   powershell -File .\release-desktop.ps1
+#   powershell -File .\release-desktop.ps1 -Version 1.0.1
+#   powershell -File .\release-desktop.ps1 -Version 1.0.1 -Notes "Novos recursos fofinhos e correções!"
 
 param(
-  [string]$Version = ""
+    [string]$Version = "",
+    [string]$Notes = ""
 )
 
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
+$root = $PSScriptRoot
+if (-not $root) { $root = Get-Location }
 Set-Location $root
 
-if (-not $env:GH_TOKEN) {
-  $env:GH_TOKEN = (gh auth token)
-  if (-not $env:GH_TOKEN) {
-    throw "Set GH_TOKEN or run 'gh auth login' first."
-  }
+Write-Host ""
+Write-Host "================================================================================" -ForegroundColor Magenta
+Write-Host "  💕 PEDI PARA MEU MARIDO - Gerador & Publicador de Updatezinho 💕" -ForegroundColor Magenta
+Write-Host "================================================================================" -ForegroundColor Magenta
+Write-Host ""
+
+# 1. Checar autenticação no GitHub CLI
+Write-Host "  [+] Verificando login no GitHub CLI (gh)..." -ForegroundColor Cyan
+try {
+    $ghUser = (gh api user --jq '.login')
+    if (-not $ghUser) { throw "Não autenticado." }
+    Write-Host "  [OK] Conectado ao GitHub como: @$ghUser" -ForegroundColor Green
+} catch {
+    Write-Host "  [ERRO] Você precisa estar logado no GitHub CLI." -ForegroundColor Red
+    Write-Host "         Execute: gh auth login" -ForegroundColor Yellow
+    exit 1
 }
 
-$pkgPath = Join-Path $root 'apps\desktop\package.json'
-$pkgRaw = Get-Content $pkgPath -Raw -Encoding UTF8
-$pkg = $pkgRaw | ConvertFrom-Json
+# 2. Configurar ambiente Cargo/Rust se necessário
+$cargoPath = "$env:USERPROFILE\.cargo\bin"
+if (Test-Path $cargoPath) {
+    if ($env:PATH -notlike "*$cargoPath*") {
+        $env:PATH = "$cargoPath;" + $env:PATH
+    }
+}
+$env:CARGO_BUILD_JOBS = 1
+
+# 3. Ler e atualizar versões
+$pkgPath = Join-Path $root 'package.json'
+$tauriConfPath = Join-Path $root 'src-tauri\tauri.conf.json'
+$cargoTomlPath = Join-Path $root 'src-tauri\Cargo.toml'
+
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+
+$pkgJson = Get-Content $pkgPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$currentVer = $pkgJson.version
 
 if ($Version) {
-  $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-  $pkgRaw = $pkgRaw -replace '"version":\s*"[^"]+"', ('"version": "' + $Version + '"')
-  [System.IO.File]::WriteAllText($pkgPath, $pkgRaw, $utf8NoBom)
-  $shared = Join-Path $root 'packages\shared\src\constants.ts'
-  $sharedRaw = Get-Content $shared -Raw -Encoding UTF8
-  $sharedRaw = $sharedRaw -replace "APP_VERSION = '[^']+'", "APP_VERSION = '$Version'"
-  [System.IO.File]::WriteAllText($shared, $sharedRaw, $utf8NoBom)
-  Write-Host "Version set to $Version"
-  $pkg = $pkgRaw | ConvertFrom-Json
+    $ver = $Version.Trim().TrimStart('v')
+    Write-Host "  [+] Atualizando versão do projeto: $currentVer -> $ver" -ForegroundColor Yellow
+
+    # package.json
+    $pkgRaw = Get-Content $pkgPath -Raw -Encoding UTF8
+    $pkgRaw = $pkgRaw -replace '"version":\s*"[^"]+"', ('"version": "' + $ver + '"')
+    [System.IO.File]::WriteAllText($pkgPath, $pkgRaw, $utf8NoBom)
+
+    # tauri.conf.json
+    $tauriRaw = Get-Content $tauriConfPath -Raw -Encoding UTF8
+    $tauriRaw = $tauriRaw -replace '"version":\s*"[^"]+"', ('"version": "' + $ver + '"')
+    [System.IO.File]::WriteAllText($tauriConfPath, $tauriRaw, $utf8NoBom)
+
+    # Cargo.toml
+    $cargoRaw = Get-Content $cargoTomlPath -Raw -Encoding UTF8
+    $cargoRaw = $cargoRaw -replace '(?m)^version\s*=\s*"[^"]+"', ('version = "' + $ver + '"')
+    [System.IO.File]::WriteAllText($cargoTomlPath, $cargoRaw, $utf8NoBom)
+
+    Write-Host "  [OK] Versões sincronizadas com sucesso!" -ForegroundColor Green
+} else {
+    $ver = $currentVer
+    Write-Host "  [*] Mantendo versão atual: $ver" -ForegroundColor Cyan
 }
 
-$ver = $pkg.version
-Write-Host '==> Shared build'
-pnpm --filter @ferrogestor/shared build
-if ($LASTEXITCODE -ne 0) { throw 'shared build failed' }
-
-Write-Host "==> Desktop build $ver"
-Set-Location (Join-Path $root 'apps\desktop')
-pnpm build
-if ($LASTEXITCODE -ne 0) { throw 'desktop build failed' }
-
-if (-not (Test-Path 'dist\index.html')) {
-  throw 'dist/index.html missing - incomplete build'
+if (-not $Notes) {
+    $Notes = "💕 Atualização com muito amor para minha esposa! Melhorias, correções e novidades quentinhas preparadas com carinho."
 }
 
-Write-Host '==> electron-builder --publish always'
-pnpm exec electron-builder --win nsis --publish always
-if ($LASTEXITCODE -ne 0) { throw 'electron-builder publish failed' }
-
-# Compat: old builds with channel=stable look for stable.yml
-$releaseDir = Join-Path (Get-Location) 'release'
-$latestYml = Join-Path $releaseDir 'latest.yml'
-$stableYml = Join-Path $releaseDir 'stable.yml'
-if (Test-Path $latestYml) {
-  Copy-Item -Force $latestYml $stableYml
-  Write-Host '==> Upload stable.yml (alias of latest.yml) for legacy updater'
-  gh release upload "v$ver" $stableYml --clobber
-  if ($LASTEXITCODE -ne 0) {
-    Write-Warning 'Failed to upload stable.yml. Check gh auth. latest.yml already published by electron-builder.'
-  }
+# 4. Liberar porta 1420 caso o dev server esteja rodando
+$occupied = Get-NetTCPConnection -LocalPort 1420 -ErrorAction SilentlyContinue
+if ($occupied) {
+    Write-Host "  [+] Liberando processos na porta 1420..." -ForegroundColor Yellow
+    $occupied | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Milliseconds 400
 }
 
-Write-Host ''
-Write-Host "OK. Release v$ver published (Setup.exe + latest.yml + stable.yml)."
-Write-Host 'At Sucatas: open the INSTALLED app -> Settings -> Check for updates.'
-Write-Host 'Dev mode (pnpm dev) does NOT update via this path.'
+# 5. Compilar frontend Vite
+Write-Host ""
+Write-Host "  [1/4] Compilando frontend otimizado com Vite..." -ForegroundColor Cyan
+npm run build
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  [ERRO] Falha ao compilar o frontend." -ForegroundColor Red
+    exit 1
+}
+
+# 6. Compilar Tauri NSIS
+Write-Host ""
+Write-Host "  [2/4] Compilando instalador nativo Tauri NSIS (.exe)..." -ForegroundColor Cyan
+npx tauri build --bundles nsis
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  [ERRO] Falha ao gerar o bundle NSIS do Tauri." -ForegroundColor Red
+    exit 1
+}
+
+# 7. Localizar o executável gerado
+$bundleDir = Join-Path $root "src-tauri\target\release\bundle\nsis"
+if (-not (Test-Path $bundleDir)) {
+    Write-Host "  [ERRO] Pasta do instalador não encontrada em: $bundleDir" -ForegroundColor Red
+    exit 1
+}
+
+$setupExe = Get-ChildItem -Path $bundleDir -Filter "*setup.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if (-not $setupExe) {
+    Write-Host "  [ERRO] Nenhum arquivo *setup.exe encontrado na pasta $bundleDir" -ForegroundColor Red
+    exit 1
+}
+
+$setupFileName = $setupExe.Name
+$setupFileSize = $setupExe.Length
+Write-Host "  [OK] Instalador encontrado: $setupFileName ($([math]::Round($setupFileSize / 1MB, 2)) MB)" -ForegroundColor Green
+
+# 8. Gerar arquivo latest.json para verificação automática do app
+Write-Host ""
+Write-Host "  [3/4] Gerando arquivo de metadados latest.json..." -ForegroundColor Cyan
+$repoOwner = "magrelone"
+$repoName = "minha-esposa-pedio"
+$downloadUrl = "https://github.com/$repoOwner/$repoName/releases/download/v$ver/$setupFileName"
+
+$latestData = [ordered]@{
+    version      = $ver
+    notes        = $Notes
+    pub_date     = [DateTime]::UtcNow.ToString("o")
+    url          = $downloadUrl
+    fileName     = $setupFileName
+    size         = $setupFileSize
+}
+
+$releaseOutputDir = Join-Path $root "release"
+if (-not (Test-Path $releaseOutputDir)) {
+    New-Item -ItemType Directory -Path $releaseOutputDir | Out-Null
+}
+
+$latestJsonPath = Join-Path $releaseOutputDir "latest.json"
+$latestJsonContent = $latestData | ConvertTo-Json -Depth 5
+[System.IO.File]::WriteAllText($latestJsonPath, $latestJsonContent, $utf8NoBom)
+Write-Host "  [OK] latest.json gerado em: $latestJsonPath" -ForegroundColor Green
+
+# 9. Publicar no GitHub Releases via GitHub CLI
+Write-Host ""
+Write-Host "  [4/4] Publicando release v$ver no GitHub ($repoOwner/$repoName)..." -ForegroundColor Cyan
+
+# Copiar setup para pasta release para upload limpo
+$releaseSetupPath = Join-Path $releaseOutputDir $setupFileName
+Copy-Item -Path $setupExe.FullName -Destination $releaseSetupPath -Force
+
+$releaseTitle = "v$ver 💕 Amor, saiu updatezinho!"
+gh release create "v$ver" $releaseSetupPath $latestJsonPath --title $releaseTitle --notes "$Notes" --clobber
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  [ERRO] Falha ao publicar release no GitHub CLI." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "================================================================================" -ForegroundColor Green
+Write-Host "  ✨ SUCESSO! Updatezinho v$ver publicado com amor no GitHub! 💕" -ForegroundColor Green
+Write-Host "================================================================================" -ForegroundColor Green
+Write-Host "  👉 Versão: $ver" -ForegroundColor White
+Write-Host "  👉 Setup: $downloadUrl" -ForegroundColor White
+Write-Host "  👉 Metadados: https://github.com/$repoOwner/$repoName/releases/download/v$ver/latest.json" -ForegroundColor White
+Write-Host ""
+Write-Host "  Sua esposa já poderá receber a notificação fofinha no app dela! 🥰" -ForegroundColor Yellow
+Write-Host ""

@@ -13,11 +13,17 @@ import { OverlayApp } from "./overlay/OverlayApp";
 import { useCrosshairStore } from "./projects/crosshair/store/crosshairStore";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
+import { checkForUpdates, UpdateInfo } from "./core/services/updateService";
+import { UpdateModal } from "./core/components/UpdateModal";
 
 export const App: React.FC = () => {
   const [currentRoute, setCurrentRoute] = useState<string>(() => {
     return window.location.hash ? window.location.hash.replace("#", "") : "/";
   });
+
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [currentAppVersion, setCurrentAppVersion] = useState("1.0.0");
 
   const {
     activeCrosshair,
@@ -173,10 +179,38 @@ export const App: React.FC = () => {
     );
   };
 
+  // Verificação automática silenciosa de atualizações após iniciar
+  useEffect(() => {
+    // Apenas na janela principal, não na sobreposição (overlay)
+    if (window.location.hash.includes("overlay")) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await checkForUpdates(false);
+        if (res.hasUpdate && res.updateInfo) {
+          setUpdateInfo(res.updateInfo);
+          setCurrentAppVersion(res.currentVersion);
+          setUpdateModalOpen(true);
+        }
+      } catch {}
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <AppLayout currentRoute={currentRoute} onNavigate={navigate}>
-      {renderContent()}
-    </AppLayout>
+    <>
+      <AppLayout currentRoute={currentRoute} onNavigate={navigate}>
+        {renderContent()}
+      </AppLayout>
+
+      <UpdateModal
+        isOpen={updateModalOpen}
+        onClose={() => setUpdateModalOpen(false)}
+        updateInfo={updateInfo}
+        currentVersion={currentAppVersion}
+      />
+    </>
   );
 };
 

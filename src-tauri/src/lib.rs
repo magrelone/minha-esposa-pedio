@@ -365,6 +365,87 @@ fn autoclick_clear_history(app: AppHandle) -> Result<(), String> {
     db.clear_history().map_err(|e| e.to_string())
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UpdateProgressPayload {
+    pub status: String,
+    pub percent: f32,
+    pub message: String,
+}
+
+#[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "", &url])
+            .spawn()
+            .map_err(|e| format!("Erro ao abrir link: {}", e))?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = url;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn download_and_run_installer(app: AppHandle, url: String) -> Result<(), String> {
+    let app_handle = app.clone();
+
+    std::thread::spawn(move || {
+        let temp_dir = std::env::temp_dir();
+        let target_path = temp_dir.join("PediParaMeuMarido_Setup_Update.exe");
+
+        let _ = app_handle.emit("update-download-progress", UpdateProgressPayload {
+            status: "downloading".to_string(),
+            percent: 15.0,
+            message: "Iniciando download com carinho... 💕".to_string(),
+        });
+
+        // Usar curl nativo do Windows para baixar com suporte a redirects (GitHub Releases / AWS S3)
+        let status = std::process::Command::new("curl.exe")
+            .args(["-L", "-f", "-o", target_path.to_str().unwrap_or_default(), &url])
+            .status();
+
+        match status {
+            Ok(s) if s.success() && target_path.exists() => {
+                let _ = app_handle.emit("update-download-progress", UpdateProgressPayload {
+                    status: "ready".to_string(),
+                    percent: 100.0,
+                    message: "Download concluído! Abrindo instalador... ✨".to_string(),
+                });
+
+                std::thread::sleep(std::time::Duration::from_millis(800));
+
+                if let Ok(_) = std::process::Command::new(&target_path).spawn() {
+                    std::thread::sleep(std::time::Duration::from_millis(1000));
+                    app_handle.exit(0);
+                } else {
+                    let _ = app_handle.emit("update-download-progress", UpdateProgressPayload {
+                        status: "error".to_string(),
+                        percent: 0.0,
+                        message: "Não foi possível iniciar o instalador automaticamente.".to_string(),
+                    });
+                }
+            }
+            _ => {
+                let _ = app_handle.emit("update-download-progress", UpdateProgressPayload {
+                    status: "error".to_string(),
+                    percent: 0.0,
+                    message: "Falha ao baixar atualização. Você também pode baixar pelo navegador! 💕".to_string(),
+                });
+            }
+        }
+    });
+
+    Ok(())
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(
@@ -402,6 +483,9 @@ pub fn run() {
             autoclick_clear_history,
             autoclick_register_hotkey,
             autoclick_register_emergency_hotkey,
+            get_app_version,
+            open_external_url,
+            download_and_run_installer,
         ])
 
         .setup(|app| {

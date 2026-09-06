@@ -22,7 +22,10 @@ import {
   HelpCircle,
   X,
   ShieldCheck,
+  RefreshCw,
 } from "lucide-react";
+import { checkForUpdates, getCurrentVersion, UpdateInfo } from "@/core/services/updateService";
+import { UpdateModal } from "@/core/components/UpdateModal";
 
 interface MonitorOption {
   name: string;
@@ -57,9 +60,15 @@ export const SettingsView: React.FC = () => {
   const [geminiRequestsToday, setGeminiRequestsToday] = useState(0);
   const [showGeminiTutorial, setShowGeminiTutorial] = useState(false);
 
+  const [currentVersion, setCurrentVersion] = useState("1.0.0");
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+
   // Load Tauri settings if available
   useEffect(() => {
     try {
+      getCurrentVersion().then(setCurrentVersion);
       const savedAuto = localStorage.getItem("pmm_autostart") === "true";
       const savedTray = localStorage.getItem("pmm_minimize_tray") !== "false";
       const savedKey = localStorage.getItem("pmm_gemini_api_key") || "";
@@ -70,6 +79,24 @@ export const SettingsView: React.FC = () => {
       setGeminiRequestsToday(savedUsage);
     } catch {}
   }, []);
+
+  const handleCheckUpdates = async () => {
+    setCheckingUpdate(true);
+    try {
+      const res = await checkForUpdates(true);
+      setCurrentVersion(res.currentVersion);
+      if (res.hasUpdate && res.updateInfo) {
+        setUpdateInfo(res.updateInfo);
+        setUpdateModalOpen(true);
+      } else {
+        addToast("Você já está na versão mais recente cheia de amor! 🥰✨", "sparkle");
+      }
+    } catch {
+      addToast("Não foi possível verificar atualizações no momento.", "warning");
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   const handleSaveGeminiKey = () => {
     const trimmed = geminiApiKey.trim();
@@ -431,7 +458,40 @@ export const SettingsView: React.FC = () => {
         </div>
       </Card>
 
-      {/* 6. Limpeza de Dados */}
+      {/* 6. Atualizações do Programa */}
+      <Card className="flex flex-col gap-4 border-pink-500/20 bg-gradient-to-r from-pink-500/5 to-purple-500/5">
+        <div className="flex items-center justify-between border-b border-theme-border/60 pb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles size={18} className="text-pink-500" />
+            <h3 className="text-base font-bold text-theme-text">Atualizações do Programa</h3>
+          </div>
+          <span className="px-2.5 py-0.5 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-600 dark:text-pink-400 font-bold text-xs">
+            v{currentVersion}
+          </span>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex flex-col gap-1">
+            <span className="font-bold text-theme-text">Central de Releases & Novidades</span>
+            <span className="text-theme-text-muted">
+              O maridão prepara atualizações constantes com melhorias e carinho para você.
+            </span>
+          </div>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleCheckUpdates}
+            disabled={checkingUpdate}
+            className="shrink-0 flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-md shadow-pink-500/20"
+          >
+            <RefreshCw size={13} className={checkingUpdate ? "animate-spin" : ""} />
+            <span>{checkingUpdate ? "Verificando..." : "Buscar Atualizações 💕"}</span>
+          </Button>
+        </div>
+      </Card>
+
+      {/* 7. Limpeza de Dados */}
       <Card className="flex flex-col gap-4">
         <div className="flex items-center gap-2 border-b border-theme-border/60 pb-3">
           <Trash2 size={18} className="text-rose-500" />
@@ -522,6 +582,13 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      <UpdateModal
+        isOpen={updateModalOpen}
+        onClose={() => setUpdateModalOpen(false)}
+        updateInfo={updateInfo}
+        currentVersion={currentVersion}
+      />
     </div>
   );
 };

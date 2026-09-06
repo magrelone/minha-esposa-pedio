@@ -1,8 +1,39 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card } from "@/core/components/Card";
-import { Heart, ShieldCheck, ExternalLink, Code } from "lucide-react";
+import { Heart, ShieldCheck, ExternalLink, Code, Sparkles, RefreshCw } from "lucide-react";
+import { checkForUpdates, getCurrentVersion, UpdateInfo } from "@/core/services/updateService";
+import { UpdateModal } from "@/core/components/UpdateModal";
+import { useToast } from "@/core/components/Toast";
 
 export const AboutView: React.FC = () => {
+  const [currentVersion, setCurrentVersion] = useState("1.0.0");
+  const [checking, setChecking] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const { addToast } = useToast();
+
+  useEffect(() => {
+    getCurrentVersion().then(setCurrentVersion);
+  }, []);
+
+  const handleManualCheck = async () => {
+    setChecking(true);
+    try {
+      const res = await checkForUpdates(true);
+      setCurrentVersion(res.currentVersion);
+      if (res.hasUpdate && res.updateInfo) {
+        setUpdateInfo(res.updateInfo);
+        setModalOpen(true);
+      } else {
+        addToast("Você já está usando a versão mais recente cheia de amor! 🥰✨", "sparkle");
+      }
+    } catch {
+      addToast("Não foi possível verificar no momento.", "warning");
+    } finally {
+      setChecking(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto py-2">
       <div>
@@ -18,14 +49,29 @@ export const AboutView: React.FC = () => {
           <div className="w-12 h-12 rounded-2xl bg-pink-100 text-pink-500 flex items-center justify-center text-2xl flex-shrink-0">
             💕
           </div>
-          <div className="flex flex-col gap-1.5">
-            <h3 className="text-lg font-bold text-theme-text">Para minha esposa querida</h3>
+          <div className="flex flex-col gap-1.5 flex-1">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-theme-text">Para minha esposa querida</h3>
+              <span className="px-2.5 py-1 rounded-full bg-pink-500/10 text-pink-600 dark:text-pink-400 font-bold text-xs border border-pink-500/20">
+                v{currentVersion}
+              </span>
+            </div>
             <p className="text-xs leading-relaxed text-theme-text-muted">
               Este programa foi criado especialmente para você, com muito carinho e paciência, para que cada pequeno utilitário ou ferramenta que você precisar no seu dia a dia e nos seus jogos favoritos esteja sempre à sua disposição, rápido, fofinho e sem complicações.
             </p>
-            <span className="text-xs font-semibold text-theme-primary mt-1">
-              "Feito com todo o amor do mundo." ✨
-            </span>
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-theme-border/40">
+              <span className="text-xs font-semibold text-theme-primary">
+                "Feito com todo o amor do mundo." ✨
+              </span>
+              <button
+                onClick={handleManualCheck}
+                disabled={checking}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-theme-primary/10 hover:bg-theme-primary/20 text-theme-primary font-medium text-xs transition-colors disabled:opacity-50"
+              >
+                <RefreshCw size={13} className={checking ? "animate-spin" : ""} />
+                <span>{checking ? "Verificando..." : "Verificar se tem updatezinho 💕"}</span>
+              </button>
+            </div>
           </div>
         </div>
       </Card>
@@ -87,6 +133,13 @@ export const AboutView: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      <UpdateModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        updateInfo={updateInfo}
+        currentVersion={currentVersion}
+      />
     </div>
   );
 };
